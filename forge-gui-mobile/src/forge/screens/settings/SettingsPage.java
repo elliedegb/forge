@@ -6,7 +6,6 @@ import forge.Forge;
 import forge.Graphics;
 import forge.MulliganDefs;
 import forge.StaticData;
-import forge.adventure.util.Config;
 import forge.ai.AiProfileUtil;
 import forge.assets.*;
 import forge.game.GameLogEntryType;
@@ -151,8 +150,7 @@ public class SettingsPage extends TabPage<SettingsScreen> {
                     @Override
                     public void select() {
                         super.select();
-                        Config.instance().getSettingData().fullScreen = FModel.getPreferences().getPrefBoolean(FPref.UI_FULLSCREEN_MODE);
-                        Config.instance().saveSettings();
+                        Forge.setFullscreen(FModel.getPreferences().getPrefBoolean(FPref.UI_FULLSCREEN_MODE)); //takes effect right away
                     }
                 }, 0);
             lstSettings.addItem(new BooleanSetting(FPref.UI_KEEP_MOUSE_IN_FULLSCREEN,

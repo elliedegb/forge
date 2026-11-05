@@ -286,6 +286,32 @@ public class Forge implements ApplicationListener {
         }
     }
 
+    /** Desktop: switches between fullscreen and a window right away (no restart) and remembers the choice. */
+    public static void setFullscreen(boolean fullscreen) {
+        if (GuiBase.isAndroid() || Gdx.graphics == null) {
+            return;
+        }
+        if (fullscreen) {
+            Gdx.graphics.setFullscreenMode(Gdx.graphics.getDisplayMode());
+        } else {
+            int w = Config.instance().getSettingData().width, h = Config.instance().getSettingData().height;
+            if (w <= 0 || h <= 0) { w = 1280; h = 720; }
+            Gdx.graphics.setWindowedMode(w, h);
+        }
+        FModel.getPreferences().setPref(FPref.UI_FULLSCREEN_MODE, fullscreen);
+        FModel.getPreferences().save();
+        Config.instance().getSettingData().fullScreen = fullscreen;
+        Config.instance().saveSettings();
+        updateMouseConfine();
+    }
+
+    /** Desktop: F11 or Alt+Enter, and the Full screen item of the game menu. */
+    public static void toggleFullscreen() {
+        if (Gdx.graphics != null) {
+            setFullscreen(!Gdx.graphics.isFullscreen());
+        }
+    }
+
     /**
      * Confine the mouse to the window when fullscreen and the preference is on.
      * Uses GLFW_CURSOR_CAPTURED (visible cursor) rather than setCursorCatched.
@@ -1282,6 +1308,11 @@ public class Forge implements ApplicationListener {
         @Override
         public boolean keyDown(int keyCode) {
             lastInputWasController = false;
+            if (!GuiBase.isAndroid() && (keyCode == Keys.F11 || (keyCode == Keys.ENTER
+                    && (Gdx.input.isKeyPressed(Keys.ALT_LEFT) || Gdx.input.isKeyPressed(Keys.ALT_RIGHT))))) {
+                toggleFullscreen();
+                return true;
+            }
             if (keyCode == Keys.MENU) {
                 showMenu();
                 return true;

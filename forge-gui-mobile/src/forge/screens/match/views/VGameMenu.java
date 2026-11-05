@@ -1,5 +1,6 @@
 package forge.screens.match.views;
 
+import forge.gui.GuiBase;
 import forge.Forge;
 import forge.assets.FSkinImage;
 import forge.gamemodes.match.DrawOfferMessage;
@@ -92,6 +93,11 @@ public class VGameMenu extends FDropDownMenu {
             addItem(new FMenuItem(Forge.getLocalizer().getMessage("lblShowWinLoseOverlay"), FSkinImage.ENDTURN, e ->
                     MatchController.instance.showWinlose()
             ));
+            if (!GuiBase.isAndroid()) { //desktop: fullscreen on and off without leaving the game (also F11 or Alt+Enter)
+                addItem(new FMenuItem(Forge.getLocalizer().getMessage("lblFullScreenMode") + " (F11)", Forge.hdbuttons ? FSkinImage.HDPREFERENCE : FSkinImage.SETTINGS, e ->
+                        Forge.toggleFullscreen()
+                ));
+            }
         }
     }
 }

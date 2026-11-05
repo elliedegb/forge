@@ -94,6 +94,12 @@
             <resource>
                 <directory>src/main/resources</directory>
             </resource>
+            <!-- this fork's skins: Android downloads its res folder from upstream Forge, which does not have them,
+                 so the APK carries them and FSkin copies them into res/skins on start -->
+            <resource>
+                <directory>../forge-gui/res/skins/scry_magic</directory>
+                <targetPath>assets/bundled_skins/scry_magic</targetPath>
+            </resource>
         </resources>
         <!-- append generated snapshot-version property -->
         <finalName>forge-android-${snapshot-version}</finalName>

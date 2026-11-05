@@ -65,6 +65,7 @@ public class ForgePreferences extends AbstractPreferences<ForgePreferences.FPref
         UI_MATCHES_PER_GAME("3"),
         UI_LOBBY_SETUP(""),
         UI_COMMANDER_EDITION("true"),
+        UI_COMMANDER_SKIN_SET("false"), //the Commander edition has moved this profile off the Default skin once
         UI_RANDOM_FOIL ("false"),
         UI_AVATARS ("0,1"),
         UI_SLEEVES ("0,1"),
@@ -433,6 +434,16 @@ public class ForgePreferences extends AbstractPreferences<ForgePreferences.FPref
     /** Instantiates a ForgePreferences object. */
     public ForgePreferences() {
         super(ForgeConstants.MAIN_PREFS_FILE, FPref.class);
+        //profiles saved before the Commander edition existed keep "Default" as their skin, so they never see the
+        //Scry Magic skin: switch them once; a skin chosen in Settings afterwards stays
+        if ("true".equalsIgnoreCase(getPref(FPref.UI_COMMANDER_EDITION)) && !"true".equalsIgnoreCase(getPref(FPref.UI_COMMANDER_SKIN_SET))
+                && new java.io.File(ForgeConstants.MAIN_PREFS_FILE).exists()) { //a new profile starts on the right skin anyway
+            if ("default".equalsIgnoreCase(getPref(FPref.UI_SKIN))) {
+                setPref(FPref.UI_SKIN, FPref.UI_SKIN.getDefault());
+            }
+            setPref(FPref.UI_COMMANDER_SKIN_SET, "true");
+            save();
+        }
     }
 
     /** Parse the custom log types preference into a Set. */

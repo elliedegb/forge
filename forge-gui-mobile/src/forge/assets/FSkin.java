@@ -128,6 +128,7 @@ public class FSkin {
      *            the skin name
      */
     public static void loadLight(String skinName, final SplashScreen splashScreen) {
+        installBundledSkins();
         preferredName = skinName.toLowerCase().replace(' ', '_');
 
         //reset hd buttons/icons
@@ -293,6 +294,7 @@ public class FSkin {
      * missing, the default picture is retrieved.
      */
     public static void loadFull(final SplashScreen splashScreen) {
+        installBundledSkins(); //again, in case the resource download replaced the res folder since loadLight
         if (splashScreen != null) {
             // Preferred skin name must be called via loadLight() method,
             // which does some cleanup and init work.
@@ -599,6 +601,37 @@ public class FSkin {
     }
 
     /** Skins shipped in res/skins next to the default one, such as the Commander edition's Scry Magic skin. */
+    //skins this fork adds to res/skins, and their files; the APK carries them in its assets under bundled_skins
+    private static final String[] BUNDLED_SKINS = { "scry_magic" };
+    private static final String[] BUNDLED_SKIN_FILES = { "sprite_icons.png", "bg_match.jpg", "bg_texture.jpg" };
+
+    /**
+     * Android downloads its resource files from upstream Forge, which has none of this fork's skins,
+     * so the APK carries them and puts them in res/skins, replacing older copies after an update.
+     */
+    private static void installBundledSkins() {
+        if (!GuiBase.isAndroid()) {
+            return; //desktop and mobile-dev run from a res folder that already has them
+        }
+        for (String skin : BUNDLED_SKINS) {
+            for (String file : BUNDLED_SKIN_FILES) {
+                try {
+                    final FileHandle source = Gdx.files.internal("bundled_skins/" + skin + "/" + file);
+                    if (!source.exists()) {
+                        continue;
+                    }
+                    final FileHandle target = Gdx.files.absolute(ForgeConstants.BASE_SKINS_DIR + skin + "/" + file);
+                    final long size = source.length();
+                    if (!target.exists() || size <= 0 || target.length() != size) {
+                        source.copyTo(target);
+                    }
+                } catch (RuntimeException e) {
+                    System.err.println("Could not install skin file " + skin + "/" + file + ": " + e.getMessage());
+                }
+            }
+        }
+    }
+
     private static boolean isBundledSkin(String name) {
         if (name == null || name.equalsIgnoreCase("default")) {
             return false;
