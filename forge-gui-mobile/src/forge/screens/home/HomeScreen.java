@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.utils.Align;
 
 import forge.Forge;
@@ -12,10 +13,12 @@ import forge.assets.FImage;
 import forge.assets.FSkin;
 import forge.assets.FSkinColor;
 import forge.assets.FSkinColor.Colors;
+import forge.assets.FSkinFont;
 import forge.assets.FSkinImage;
 import forge.deck.FDeckChooser;
 import forge.game.GameType;
 import forge.gamemodes.replay.ReplayLauncher;
+import forge.gui.CommanderEdition;
 import forge.gui.FThreads;
 import forge.screens.FScreen;
 import forge.screens.achievements.AchievementsScreen;
@@ -37,6 +40,22 @@ public class HomeScreen extends FScreen {
     private static final FSkinColor l00 = clrTheme.stepColor(0);
     private static final FSkinColor d80 = clrTheme.stepColor(-80);
     public static final float MAIN_MENU_WIDTH_FACTOR = 0.35f;
+    // Commander edition, portrait: Scry Magic's palette, a hero card with the logo and New Game, then tiles in two columns
+    private static final Color CE_SURFACE = new Color(23 / 255f, 29 / 255f, 50 / 255f, 0.94f);
+    private static final Color CE_RAISED = new Color(40 / 255f, 51 / 255f, 75 / 255f, 0.96f);
+    private static final Color CE_LINE = new Color(88 / 255f, 103 / 255f, 129 / 255f, 1f);
+    private static final Color CE_ACCENT = new Color(140 / 255f, 220 / 255f, 248 / 255f, 1f);
+    private static final Color CE_ACCENT_DOWN = new Color(104 / 255f, 186 / 255f, 220 / 255f, 1f);
+    private static final Color CE_HERO_EDGE = new Color(140 / 255f, 220 / 255f, 248 / 255f, 0.55f);
+    private static final Color CE_HERO_FILL = new Color(23 / 255f, 29 / 255f, 50 / 255f, 1f);
+    private static final Color CE_BG_TOP = new Color(11 / 255f, 16 / 255f, 32 / 255f, 1f);
+    private static final Color CE_BG_BOTTOM = new Color(18 / 255f, 26 / 255f, 51 / 255f, 1f);
+    private static final Color CE_TILE = new Color(23 / 255f, 29 / 255f, 50 / 255f, 1f);
+    private static final Color CE_INK = new Color(16 / 255f, 36 / 255f, 54 / 255f, 1f);
+    private static final Color CE_TEXT = new Color(246 / 255f, 243 / 255f, 1f, 1f);
+    private static final Color CE_MUTED = new Color(194 / 255f, 202 / 255f, 221 / 255f, 1f);
+    private static final float CE_PAD = Utils.scale(12);
+    private float heroTop, heroBottom, heroTextRight;
 
     public static final HomeScreen instance = new HomeScreen();
 
@@ -200,8 +219,28 @@ public class HomeScreen extends FScreen {
         buttonScroller.scrollIntoView(buttons.get(index));
     }
 
+    private static boolean commanderLayout() {
+        return CommanderEdition.isEnabled() && !Forge.isLandscapeMode();
+    }
+
+    private void doCommanderLayout(float width, float height) {
+        float logoSize = Math.min(width * 0.28f, height * 0.15f);
+        heroTop = CE_PAD;
+        lblLogo.setBounds(width - 2 * CE_PAD - logoSize, heroTop + CE_PAD, logoSize, logoSize);
+        heroTextRight = lblLogo.getLeft() - CE_PAD;
+        float scrollerTop = lblLogo.getBottom() + CE_PAD;
+        buttonScroller.buttonHeight = Utils.AVG_FINGER_HEIGHT * 1.25f;
+        buttonScroller.padding = CE_PAD;
+        buttonScroller.setBounds(0, scrollerTop, width, height - scrollerTop);
+        heroBottom = scrollerTop + buttonScroller.buttonHeight + CE_PAD;
+    }
+
     @Override
     protected void doLayout(float startY, float width, float height) {
+        if (commanderLayout()) {
+            doCommanderLayout(width, height);
+            return;
+        }
         float buttonWidth = width - 2 * PADDING;
         float buttonHeight = buttons.get(0).getFont().getCapHeight() * 3.5f;
         float x = PADDING;
@@ -248,6 +287,23 @@ public class HomeScreen extends FScreen {
     @Override
     protected void drawBackground(Graphics g) {
         super.drawBackground(g);
+
+        if (commanderLayout()) { //navy backdrop as in the app, then the hero card behind the logo, the title and New Game
+            g.fillGradientRect(CE_BG_TOP, CE_BG_BOTTOM, true, 0, 0, getWidth(), getHeight());
+            float radius = CE_PAD * 1.4f, x = CE_PAD, w = getWidth() - 2 * CE_PAD;
+            //the edge is a rounded fill under the card: drawRoundRect leaves straight lines inside the corners
+            float edge = Utils.scale(1.5f);
+            g.fillRoundRect(CE_HERO_EDGE, x, heroTop, w, heroBottom - heroTop, radius);
+            g.fillRoundRect(CE_HERO_FILL, x + edge, heroTop + edge, w - 2 * edge, heroBottom - heroTop - 2 * edge, radius - edge);
+            float tx = 2 * CE_PAD, tw = heroTextRight - tx, ty = lblLogo.getTop();
+            FSkinFont eyebrow = FSkinFont.get(11), title = FSkinFont.get(26), body = FSkinFont.get(13);
+            g.drawText("FORGE \u00b7 COMMANDER EDITION", eyebrow, CE_ACCENT, tx, ty, tw, eyebrow.getLineHeight(), false, Align.left, false);
+            ty += eyebrow.getLineHeight() * 1.3f;
+            g.drawText(Forge.getLocalizer().getMessageorUseDefault("lblCommander", "Commander"), title, CE_TEXT, tx, ty, tw, title.getLineHeight(), false, Align.left, false);
+            ty += title.getLineHeight() * 1.1f;
+            g.drawText(Forge.getLocalizer().getMessageorUseDefault("lblCommanderEditionTagline", "Your decks against the AI, from 2 to 4 players."), body, CE_MUTED, tx, ty, tw, lblLogo.getBottom() - ty, true, Align.left, false);
+            return;
+        }
 
         //handle drawing main menu background for Landscape mode
         float w = getWidth();
@@ -310,6 +366,20 @@ public class HomeScreen extends FScreen {
 
         @Override
         protected ScrollBounds layoutAndGetScrollBounds(float visibleWidth, float visibleHeight) {
+            if (commanderLayout()) { //New Game full width inside the hero card, the rest as two columns of tiles
+                float side = padding * 2, inner = visibleWidth - 2 * side, tileWidth = (inner - padding) / 2, tileHeight = buttonHeight * 1.15f;
+                buttons.get(0).setBounds(side, 0, inner, buttonHeight);
+                float y = buttonHeight + padding * 2.5f;
+                for (int i = 1; i < buttons.size(); i++) {
+                    int col = (i - 1) % 2;
+                    boolean lastAlone = col == 0 && i == buttons.size() - 1; //an odd tile out spans both columns
+                    buttons.get(i).setBounds(side + col * (tileWidth + padding), y, lastAlone ? inner : tileWidth, tileHeight);
+                    if (col == 1 || i == buttons.size() - 1) {
+                        y += tileHeight + padding;
+                    }
+                }
+                return new ScrollBounds(visibleWidth, y);
+            }
             float y = 0;
             float dy = buttonHeight + padding;
             for (MenuButton button : buttons) {
@@ -327,6 +397,21 @@ public class HomeScreen extends FScreen {
 
         @Override
         public void draw(Graphics g) {
+            if (commanderLayout()) { //rounded Scry Magic tiles; New Game is the accent button
+                boolean primary = buttons.indexOf(this) == 0, down = isPressed();
+                float radius = CE_PAD;
+                if (primary) {
+                    g.fillRoundRect(down ? CE_ACCENT_DOWN : CE_ACCENT, 0, 0, getWidth(), getHeight(), radius);
+                } else {
+                    float edge = Utils.scale(1f);
+                    g.fillRoundRect(CE_LINE, 0, 0, getWidth(), getHeight(), radius);
+                    g.fillRoundRect(down || isHovered() ? CE_RAISED : CE_TILE, edge, edge, getWidth() - 2 * edge, getHeight() - 2 * edge, radius - edge);
+                }
+                //long single words such as Achievements get a smaller font instead of breaking mid-word
+                FSkinFont font = primary ? FSkinFont.get(18) : FSkinFont.get(getText().length() > 10 ? 10 : 11);
+                g.drawText(primary ? "\u25b6  " + getText() : getText(), font, primary ? CE_INK : CE_TEXT, CE_PAD / 2, 0, getWidth() - CE_PAD, getHeight(), getText().contains(" "), Align.center, true);
+                return;
+            }
             if (Forge.isLandscapeMode()) {
                 //draw text only for Landscape mode
                 if (Frost.isOn()) { //frosted: white text, brighter for the active entry, indented from the accent bar

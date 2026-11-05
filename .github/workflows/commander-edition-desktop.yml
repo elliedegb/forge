@@ -1,0 +1,62 @@
+name: Commander Edition Desktop
+
+# Builds the desktop installer (Windows and Linux; macOS runs the same package) of this fork and publishes it as the
+# "commander-edition-desktop-latest" release. Upstream's "Create Desktop Snapshot" only runs for Card-Forge, which
+# uploads to its own server; this is the fork's equivalent. Runs from the Actions tab or from sync-upstream.yml.
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: commander-edition-desktop
+  cancel-in-progress: false
+
+jobs:
+  desktop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Install virtual framebuffer
+        run: command -v Xvfb >/dev/null 2>&1 || { sudo apt update && sudo apt install -y xvfb; }
+
+      - name: Build the installer
+        run: |
+          export DISPLAY=":1"
+          Xvfb :1 -screen 0 800x600x8 &
+          mvn -U -B clean -P windows-linux install -T 1C -Dmaven.test.skip=true
+
+      - name: Collect the files
+        run: |
+          mkdir dist
+          mv forge-installer/target/*.tar.bz2 forge-installer/target/*.jar dist/ 2>/dev/null || true
+          ls -la dist
+          test -n "$(ls dist)"
+
+      - name: Upload the installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: forge-commander-edition-desktop
+          path: dist/*
+          if-no-files-found: error
+
+      - name: Publish the latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes="Forge Commander edition for desktop, built from $(git rev-parse --short HEAD) on $(date -u +%Y-%m-%d). The .jar is the installer (java -jar <file>); the .tar.bz2 is the unpacked program for Windows and Linux. Needs Java 17."
+          gh release delete commander-edition-desktop-latest --yes --cleanup-tag || true
+          gh release create commander-edition-desktop-latest dist/* --title "Forge Commander edition for desktop (latest)" --notes "$notes" --target "$(git rev-parse HEAD)"

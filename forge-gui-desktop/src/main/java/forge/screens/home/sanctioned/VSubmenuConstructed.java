@@ -2,6 +2,8 @@ package forge.screens.home.sanctioned;
 
 import javax.swing.JPanel;
 
+import forge.game.GameType;
+import forge.gui.CommanderEdition;
 import forge.deckchooser.FDeckChooser;
 import forge.gamemodes.match.GameLobby;
 import forge.gamemodes.match.LocalLobby;
@@ -27,11 +29,15 @@ public enum VSubmenuConstructed implements IVSubmenu<CSubmenuConstructed> {
     final Localizer localizer = Localizer.getInstance();
     // Fields used with interface IVDoc
     private DragCell parentCell;
-    private final DragTab tab = new DragTab(localizer.getMessage("lblConstructedMode"));
+    private final DragTab tab = new DragTab(CommanderEdition.isEnabled() ? localizer.getMessage("lblCommander") : localizer.getMessage("lblConstructedMode"));
     private final GameLobby lobby = new LocalLobby();
     private final VLobby vLobby = new VLobby(lobby);
     VSubmenuConstructed() {
         lobby.restoreSetup();
+        // The Commander edition always opens on Commander, whatever an earlier lobby saved
+        if (CommanderEdition.isEnabled() && lobby.hasControl() && !lobby.hasVariant(GameType.Commander)) {
+            lobby.setFormatChoice(GameType.Commander);
+        }
         lobby.setListener(vLobby);
 
         vLobby.setPlayerChangeListener(lobby::applyToSlot);
@@ -100,7 +106,7 @@ public enum VSubmenuConstructed implements IVSubmenu<CSubmenuConstructed> {
     @Override
     public String getMenuTitle() {
 
-        return localizer.getMessage("lblConstructed");
+        return CommanderEdition.isEnabled() ? localizer.getMessage("lblCommander") : localizer.getMessage("lblConstructed");
     }
 
     /* (non-Javadoc)

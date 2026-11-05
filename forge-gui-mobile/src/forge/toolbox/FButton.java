@@ -34,6 +34,10 @@ public class FButton extends FDisplayObject implements IButton {
     private FSkinColor foreColor = getDefaultForeColor();
     private boolean toggled = false;
     private boolean pressed = false;
+
+    public boolean isPressed() {
+        return pressed;
+    }
     private FEventHandler command;
     private static final TextBounds textBounds = new TextBounds();
     private static final TextBounds autoSizeBounds = new TextBounds();

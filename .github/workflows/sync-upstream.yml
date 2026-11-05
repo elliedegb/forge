@@ -1,7 +1,7 @@
 name: Sync with upstream Forge
 
 # Every day, merges Card-Forge/forge into this fork's branch. When the merge brings new or changed card scripts
-# or set files (a new release's cards), it rebuilds and publishes the Commander edition APK.
+# or set files (a new release's cards), it rebuilds and publishes the Commander edition APK and desktop installer.
 on:
   schedule:
     - cron: '41 5 * * *'
@@ -55,3 +55,8 @@ jobs:
     needs: sync
     if: needs.sync.outputs.cards == 'true'
     uses: ./.github/workflows/commander-edition-apk.yml
+
+  desktop:
+    needs: sync
+    if: needs.sync.outputs.cards == 'true'
+    uses: ./.github/workflows/commander-edition-desktop.yml

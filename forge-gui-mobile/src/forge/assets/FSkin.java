@@ -61,6 +61,9 @@ public class FSkin {
         })), null, false, true));
     }
     public static boolean isThemeValid(FileHandle themeDir, String themeName, boolean silent) {
+        if (isBundledSkin(themeDir.name())) {
+            return true; //bundled skins take the files they do not replace from the default skin
+        }
         int missing = 0;
         if (!themeDir.child("bg_splash.png").exists()) {
             if (!silent)
@@ -166,7 +169,11 @@ public class FSkin {
         {
             if (!dir.exists() || !dir.isDirectory()) {
                 //if skins directory doesn't exist, point to internal assets/skin directory instead for the sake of the splash screen
-                useFallbackDir();
+                if (isBundledSkin(preferredName)) { //bundled skins live in res/skins, not in the cache
+                    preferredDir = Forge.getAssets().getFileHandle(ForgeConstants.BASE_SKINS_DIR + preferredName);
+                } else {
+                    useFallbackDir();
+                }
             } else {
                 if (splashScreen != null) {
                     if (allSkins == null) { //initialize
@@ -181,7 +188,7 @@ public class FSkin {
                 }
 
                 // Non-default (preferred) skin name and dir.
-                preferredDir = Forge.getAssets().getFileHandle(preferredName.equalsIgnoreCase("default") ? ForgeConstants.BASE_SKINS_DIR + preferredName : ForgeConstants.CACHE_SKINS_DIR + preferredName);
+                preferredDir = Forge.getAssets().getFileHandle(preferredName.equalsIgnoreCase("default") || isBundledSkin(preferredName) ? ForgeConstants.BASE_SKINS_DIR + preferredName : ForgeConstants.CACHE_SKINS_DIR + preferredName);
                 if (!preferredDir.exists() || !preferredDir.isDirectory()) {
                     preferredDir.mkdirs();
                 }
@@ -584,7 +591,20 @@ public class FSkin {
      * Gets a FileHandle for a file within the directory where skin files should be stored
      */
     public static FileHandle getSkinFile(String filename) {
-        return preferredDir.child(filename);
+        final FileHandle file = preferredDir.child(filename);
+        if (!file.exists() && isBundledSkin(preferredDir.name())) {
+            return getDefaultSkinFile(filename);
+        }
+        return file;
+    }
+
+    /** Skins shipped in res/skins next to the default one, such as the Commander edition's Scry Magic skin. */
+    private static boolean isBundledSkin(String name) {
+        if (name == null || name.equalsIgnoreCase("default")) {
+            return false;
+        }
+        final FileHandle dir = Forge.getAssets().getFileHandle(ForgeConstants.BASE_SKINS_DIR + name);
+        return dir.exists() && dir.isDirectory();
     }
 
     /**
@@ -621,6 +641,11 @@ public class FSkin {
             if (!skinFile.isDirectory()) { continue; }
             if (!isThemeValid(skinFile, skinName, true)) { continue; }
             mySkins.add(skinName);
+        }
+        for (FileHandle skinFile : Forge.getAssets().getFileHandle(ForgeConstants.BASE_SKINS_DIR).list()) {
+            if (skinFile.isDirectory() && isBundledSkin(skinFile.name()) && !mySkins.contains(skinFile.name(), false)) {
+                mySkins.add(skinFile.name());
+            }
         }
 
         return mySkins;

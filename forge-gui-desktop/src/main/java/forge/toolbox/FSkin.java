@@ -1176,6 +1176,12 @@ public class FSkin {
                 for (String skinDirectoryName : skinDirectoryNames) {
                     allSkins.add(WordUtil.capitalize(skinDirectoryName.replace('_', ' ')));
                 }
+                for (String bundled : getBundledSkinNames()) {
+                    final String name = WordUtil.capitalize(bundled.replace('_', ' '));
+                    if (!allSkins.contains(name)) {
+                        allSkins.add(name);
+                    }
+                }
                 Collections.sort(allSkins);
             }
         }
@@ -1184,10 +1190,11 @@ public class FSkin {
 
         // Non-default (preferred) skin name and dir.
         preferredName = skinName.toLowerCase().replace(' ', '_');
-        preferredDir = preferredName.equalsIgnoreCase("default") || preferredName.isEmpty() ? ForgeConstants.DEFAULT_SKINS_DIR : ForgeConstants.CACHE_SKINS_DIR + preferredName + "/";
+        preferredDir = preferredName.equalsIgnoreCase("default") || preferredName.isEmpty() ? ForgeConstants.DEFAULT_SKINS_DIR
+                : isBundledSkin(preferredName) ? ForgeConstants.BASE_SKINS_DIR + preferredName + "/" : ForgeConstants.CACHE_SKINS_DIR + preferredName + "/";
 
         if (onInit) {
-            final File f = new File(preferredDir + ForgeConstants.SPLASH_BG_FILE);
+            final File f = new File(skinFile(ForgeConstants.SPLASH_BG_FILE));
             if (!f.exists()) {
                 if (skinName.equals("default")) {
                     throw new RuntimeException(String.format("Cannot find default skin at %s", f.getAbsolutePath()));
@@ -1253,10 +1260,10 @@ public class FSkin {
         // Grab and test various sprite files.
         final String defaultDir = ForgeConstants.DEFAULT_SKINS_DIR;
         final File f1 = new File(defaultDir + ForgeConstants.SPRITE_ICONS_FILE);
-        final File f2 = new File(preferredDir + ForgeConstants.SPRITE_ICONS_FILE);
+        final File f2 = new File(skinFile(ForgeConstants.SPRITE_ICONS_FILE));
         final File f3 = new File(defaultDir + ForgeConstants.SPRITE_FOILS_FILE);
         final File f4 = new File(defaultDir + ForgeConstants.SPRITE_AVATARS_FILE);
-        final File f5 = new File(preferredDir + ForgeConstants.SPRITE_AVATARS_FILE);
+        final File f5 = new File(skinFile(ForgeConstants.SPRITE_AVATARS_FILE));
         final File f6 = new File(defaultDir + ForgeConstants.SPRITE_OLD_FOILS_FILE);
         final File f7 = new File(defaultDir + ForgeConstants.SPRITE_TROPHIES_FILE);
         final File f8 = new File(defaultDir + ForgeConstants.DRAFT_DECK_IMG_FILE);
@@ -1267,7 +1274,7 @@ public class FSkin {
         final File f13 = new File(defaultDir + ForgeConstants.SPRITE_SLEEVES2_FILE);
         final File f14 = new File(defaultDir + ForgeConstants.SPRITE_DECKBOX_FILE);
         final File f15 = new File(defaultDir + ForgeConstants.SPRITE_SETLOGO_FILE);
-        final File f16 = new File(preferredDir + ForgeConstants.SPRITE_SETLOGO_FILE);
+        final File f16 = new File(skinFile(ForgeConstants.SPRITE_SETLOGO_FILE));
         final File f17 = new File(defaultDir + ForgeConstants.SPRITE_WATERMARK_FILE);
         final File f18 = new File(defaultDir + ForgeConstants.SPRITE_PHYREXIAN_FILE);
         final File f19 = new File(defaultDir + ForgeConstants.SPRITE_COLORLESS_HYBRID_FILE);
@@ -1334,12 +1341,12 @@ public class FSkin {
         if (onInit) { //set default font size only once onInit
             defaultFontSize = FModel.getPreferences().getPrefInt(FPref.UI_DEFAULT_FONT_SIZE);
         }
-        SkinFont.setBaseFont(GuiUtils.newFont(preferredDir + ForgeConstants.FONT_FILE));
+        SkinFont.setBaseFont(GuiUtils.newFont(skinFile(ForgeConstants.FONT_FILE)));
 
         // Put various images into map (except sprite and splash).
         // Exceptions handled inside method.
-        SkinIcon.setIcon(FSkinProp.BG_TEXTURE, preferredDir + ForgeConstants.TEXTURE_BG_FILE);
-        SkinIcon.setIcon(FSkinProp.BG_MATCH, preferredDir + ForgeConstants.MATCH_BG_FILE);
+        SkinIcon.setIcon(FSkinProp.BG_TEXTURE, skinFile(ForgeConstants.TEXTURE_BG_FILE));
+        SkinIcon.setIcon(FSkinProp.BG_MATCH, skinFile(ForgeConstants.MATCH_BG_FILE));
         //daynight bg
         SkinIcon.setIcon(FSkinProp.BG_DAY, defaultDir + ForgeConstants.MATCH_BG_DAY_FILE);
         SkinIcon.setIcon(FSkinProp.BG_NIGHT, defaultDir + ForgeConstants.MATCH_BG_NIGHT_FILE);
@@ -1504,6 +1511,30 @@ public class FSkin {
         }
 
         return mySkins;
+    }
+
+    /** Skins shipped in res/skins next to the default one, such as the Commander edition's Scry Magic skin. */
+    public static List<String> getBundledSkinNames() {
+        final List<String> names = new ArrayList<>();
+        final File[] dirs = new File(ForgeConstants.BASE_SKINS_DIR).listFiles(File::isDirectory);
+        if (dirs != null) {
+            for (final File dir : dirs) {
+                if (!dir.getName().equalsIgnoreCase("default")) {
+                    names.add(dir.getName());
+                }
+            }
+        }
+        return names;
+    }
+
+    private static boolean isBundledSkin(final String name) {
+        return !name.equalsIgnoreCase("default") && new File(ForgeConstants.BASE_SKINS_DIR + name).isDirectory();
+    }
+
+    /** A file of the chosen skin; a bundled skin takes the files it does not replace from the default skin. */
+    private static String skinFile(final String filename) {
+        final String path = preferredDir + filename;
+        return new File(path).exists() ? path : ForgeConstants.DEFAULT_SKINS_DIR + filename;
     }
 
     public static List<String> getAllSkins() {

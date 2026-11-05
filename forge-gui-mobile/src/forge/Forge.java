@@ -18,6 +18,7 @@ import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Clipboard;
 import com.badlogic.gdx.utils.Disposable;
 import com.badlogic.gdx.utils.Timer;
+import forge.gui.CommanderEdition;
 import forge.adventure.scene.*;
 import forge.adventure.stage.MapStage;
 import forge.adventure.stage.WorldStage;
@@ -233,7 +234,8 @@ public class Forge implements ApplicationListener {
         if (FileUtil.doesFileExist(ForgeConstants.MAIN_PREFS_FILE)) {
             skinName = getForgePreferences().getPref(FPref.UI_SKIN);
         } else {
-            skinName = "default"; //use default skin if preferences file doesn't exist yet
+            //use default skin if preferences file doesn't exist yet; the Commander edition starts in its own skin
+            skinName = CommanderEdition.isEnabled() ? getForgePreferences().getPref(FPref.UI_SKIN) : "default";
         }
         if (!initialized)
             FSkin.loadLight(skinName, getSplashScreen());

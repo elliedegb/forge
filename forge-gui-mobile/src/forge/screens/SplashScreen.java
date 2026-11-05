@@ -6,6 +6,7 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.utils.Align;
 
+import forge.gui.CommanderEdition;
 import forge.Forge;
 import forge.Graphics;
 import forge.animation.ForgeAnimation;
@@ -323,6 +324,17 @@ public class SplashScreen extends FContainer {
                     bgAnimation.openAdventure = false;
                 }
             });
+            if (CommanderEdition.isEnabled()) { //Commander edition: straight into classic Forge, no Adventure choice
+                hideBtn = true;
+                if (FSkin.getLogo() == null) {
+                    hideBG = true;
+                } else {
+                    animateLogo = true;
+                }
+                bgAnimation.progress = 0;
+                bgAnimation.openAdventure = false;
+                return;
+            }
             float modw = Frost.isOn() ? 0.6f : 1f;
             float btn_w = (w - 2 * padding) * modw;
             float btn_x = Frost.isOn() ? getWidth() / 2 - btn_w / 2 : x + padding;

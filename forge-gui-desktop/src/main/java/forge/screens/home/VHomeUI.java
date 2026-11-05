@@ -32,6 +32,7 @@ import javax.swing.JPanel;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingConstants;
 
+import forge.gui.CommanderEdition;
 import forge.Singletons;
 import forge.gui.framework.EDocID;
 import forge.gui.framework.FScreen;
@@ -148,6 +149,13 @@ public enum VHomeUI implements IVTopLevelUI {
         allSubmenus.add(VSubmenuDownloaders.SINGLETON_INSTANCE);
         allSubmenus.add(VSubmenuReleaseNotes.SINGLETON_INSTANCE);
 
+        if (CommanderEdition.isEnabled()) { //Commander edition: no draft, sealed, quest or non-Commander gauntlets
+            allSubmenus.removeIf(item -> item == VSubmenuDraft.SINGLETON_INSTANCE || item == VSubmenuSealed.SINGLETON_INSTANCE
+                    || item.getGroupEnum() == EMenuGroup.QUEST
+                    || item == VSubmenuGauntletQuick.SINGLETON_INSTANCE || item == VSubmenuGauntletBuild.SINGLETON_INSTANCE
+                    || item == VSubmenuGauntletContests.SINGLETON_INSTANCE);
+        }
+
         // For each group: init its panel
         final SortedMap<EMenuGroup, JPanel> allGroupPanels = new TreeMap<>();
         for (final EMenuGroup e : EMenuGroup.values()) {
@@ -167,6 +175,9 @@ public enum VHomeUI implements IVTopLevelUI {
         // For each group: add its title, then its panel, then "click" if necessary.
         for (final EMenuGroup e : allGroupPanels.keySet()) {
             allGroupLabels.put(e, new LblGroup(e));
+            if (allGroupPanels.get(e).getComponentCount() == 0) {
+                continue; //no items left in this group, as with Quests in the Commander edition
+            }
             pnlSubmenus.add(allGroupLabels.get(e), "w 100%!, h 30px!, gap 0 0 3px 3px");
             pnlSubmenus.add(allGroupPanels.get(e), "w 100%!, gap 0 0 0 0");
 

@@ -14,6 +14,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
+import forge.gui.CommanderEdition;
 import forge.deck.*;
 import forge.deckchooser.FDeckChooser;
 import forge.game.GameFormat;
@@ -66,7 +67,9 @@ public class VLobby implements ILobbyView {
     private final GameLobby lobby;
     private CLobby controller;
     private IPlayerChangeListener playerChangeListener = null;
-    private final LblHeader lblTitle = new LblHeader(localizer.getMessage("lblHeaderConstructedMode"));
+    private final LblHeader lblTitle = new LblHeader(CommanderEdition.isEnabled()
+            ? localizer.getMessage("lblPlayMode") + ": " + localizer.getMessage("lblCommander")
+            : localizer.getMessage("lblHeaderConstructedMode"));
     private int activePlayersNum = 0;
     private int playerWithFocus = 0; // index of the player that currently has focus
 
