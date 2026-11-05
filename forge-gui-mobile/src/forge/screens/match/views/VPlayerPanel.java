@@ -462,7 +462,7 @@ public class VPlayerPanel extends FContainer {
             this.selectedTab.setDisplayVisible(true);
             startSlideAnimation(wasClosed);
         }
-        if (isCompactLayout() && !isSideSeat()) { syncCommandZone(); }
+        if (isCompactLayout()) { syncCommandZone(); }
 
         if (MatchController.getView() != null) {
             MatchController.getView().revalidate();
@@ -704,11 +704,6 @@ public class VPlayerPanel extends FContainer {
 
     @Override
     protected void doLayout(float width, float height) {
-        field.setVertical(isSideSeat(), seat == SEAT_LEFT);
-        if (isSideSeat()) {
-            doSideLayout(width, height);
-            return;
-        }
         if (Forge.isLandscapeMode() && !Duel.isOn()) { //the duel look lays out its bars the same way in both orientations
             doLandscapeLayout(width, height);
             return;
@@ -790,77 +785,6 @@ public class VPlayerPanel extends FContainer {
         }
 
         //this is used for landscape so set this to 0
-        field.setContentAlignment(0f);
-        field.setFieldModifier(0);
-    }
-
-    //seat at the duel table in landscape with 3 or 4 players
-    public static final int SEAT_BAND = 0, SEAT_LEFT = 1, SEAT_RIGHT = 2;
-    private int seat = SEAT_BAND;
-    private float sideInfoHeight;
-
-    public void setSeat(int seat0) {
-        if (seat == seat0) { return; }
-        seat = seat0;
-        stopSlideAnimation();
-        slideProgress = 1f;
-    }
-
-    /** @return true when this player sits on the left or right side of the duel table */
-    public boolean isSideSeat() {
-        return seat != SEAT_BAND && Forge.isLandscapeMode() && Duel.isOn();
-    }
-
-    /**
-     * A side seat of the duel table: a column with the avatar, life and tabs at the top, the open zone under them,
-     * the battlefield as two columns of cards (lands on the outer side) and the commander at the bottom.
-     */
-    private void doSideLayout(float width, float height) {
-        stopCommandAnimation();
-        commandOpen = false;
-        commandProgress = 0f;
-        tabStrip.setVisible(false);
-        phaseButton.setVisible(false);
-        phaseIndicator.setVisible(false); //the side seats have no room for the phase strip; the turn owner's bar shows it
-        final float gap = Utils.scale(3);
-        final float info = Math.min(VAvatar.HEIGHT, width * 0.24f);
-        sideInfoHeight = info;
-        avatar.setBounds(gap, gap, info - 2 * gap, info - 2 * gap);
-        final float lifeW = LIFE_FONT.getBounds("99").width * 1.6f;
-        lblLife.setBounds(avatar.getRight() + gap, info * 0.15f, lifeW, info * 0.7f);
-        final List<InfoTab> shown = new ArrayList<>();
-        for (InfoTab tab : tabs) {
-            boolean show = tab.isTabShown();
-            tab.setVisible(show);
-            if (show) { shown.add(tab); }
-        }
-        //the tabs get a row of their own under the avatar, wide enough to read
-        final float tw = shown.isEmpty() ? 0 : (width - 2 * gap) / shown.size();
-        final float th = Math.min(info * 0.95f, tw * 1.3f);
-        float x = gap;
-        for (InfoTab tab : shown) {
-            tab.setBounds(x, info, tw, th);
-            x += tw;
-        }
-        sideInfoHeight = info + th;
-        float y = sideInfoHeight;
-        final float displayH = Math.min(width * 0.62f, height * 0.3f);
-        for (InfoTab tab : tabs) {
-            tab.setDisplayBounds(0, y, width, displayH);
-        }
-        if (selectedTab != null) { y += displayH; }
-
-        final int cmdCount = commandZone.getCount();
-        float bottom = height;
-        commandZone.setVisible(cmdCount > 0);
-        if (cmdCount > 0) {
-            final float cmdH = Math.min(height * 0.22f, (height - y) * 0.35f);
-            final float cmdW = Math.min(width, Math.min(cmdCount, 2) * commandZone.getCardWidth(cmdH));
-            commandZone.setBounds((width - cmdW) / 2, height - cmdH, cmdW, cmdH);
-            bottom -= cmdH;
-        }
-        field.setCommandZoneWidth(0);
-        field.setBounds(0, y, width, Math.max(0f, bottom - y));
         field.setContentAlignment(0f);
         field.setFieldModifier(0);
     }
@@ -1717,18 +1641,6 @@ public class VPlayerPanel extends FContainer {
 
     @Override
     public void drawBackground(Graphics g) {
-        if (isSideSeat()) { //duel table side seat: a glass column, the player bar on a gold trimmed plate
-            final float w = getWidth(), h = getHeight();
-            g.fillRect(Duel.glass(0.45f), 0, 0, w, h);
-            Duel.drawPlate(g, 0, 0, w, sideInfoHeight, false, true);
-            final float edge = Math.max(1f, Utils.scale(1.5f));
-            g.fillRect(Duel.GOLD_FAINT, seat == SEAT_LEFT ? w - edge : 0, 0, edge, h);
-            if (selectedTab != null && selectedTab.getDisplayArea() != null) {
-                final VDisplayArea area = selectedTab.getDisplayArea();
-                g.fillRect(Duel.glass(0.85f), area.getLeft(), area.getTop(), area.getWidth(), area.getHeight());
-            }
-            return;
-        }
         if (Forge.isLandscapeMode() && !Duel.isOn()) {
             FSkinColor tabBg = FSkinColor.get(Forge.isMobileAdventureMode ? Colors.ADV_CLR_THEME2 : Colors.CLR_THEME2);
             if (commonTabWidth > 0) {

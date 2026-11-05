@@ -20,7 +20,6 @@ public class VField extends FContainer {
     private final PlayerView player;
     private final FieldRow row1, row2;
     private boolean flipped;
-    private boolean vertical, landsOnLeft; //side seat of the duel table: the two rows become two columns
     private float commandZoneWidth;
     private float innerCover; //compact zone tabs: width at the end of the inner row that the command zone box covers
     private float fieldModifier;
@@ -41,12 +40,6 @@ public class VField extends FContainer {
 
     public boolean isFlipped() {
         return flipped;
-    }
-
-    /** Side seat of the duel table: lands in the outer column, the other permanents in the inner one. */
-    public void setVertical(boolean vertical0, boolean landsOnLeft0) {
-        vertical = vertical0;
-        landsOnLeft = landsOnLeft0;
     }
 
     public void setFlipped(boolean flipped0) {
@@ -287,12 +280,6 @@ public class VField extends FContainer {
 
     @Override
     protected void doLayout(float width, float height) {
-        if (vertical) {
-            final float half = width / 2;
-            row2.setBounds(landsOnLeft ? 0 : half, 0, half, height);
-            row1.setBounds(landsOnLeft ? half : 0, 0, half, height);
-            return;
-        }
         float cardSize = height / 2;
         float y1, y2;
         if (flipped) {
@@ -314,11 +301,6 @@ public class VField extends FContainer {
 
         private FieldRow() {
             setVisible(true); //make visible by default unlike other display areas
-        }
-
-        @Override
-        protected boolean isVerticalColumn() {
-            return vertical;
         }
 
         //a zone box opened, changed size or closed over the end of the row: keep the cards clear of it

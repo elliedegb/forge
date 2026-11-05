@@ -1287,7 +1287,11 @@ public class MatchScreen extends FScreen {
             float w = getWidth();
 
             if (Duel.isOn() && Forge.isLandscapeMode() && playerPanelsList.size() > 2) {
-                return; //duel table: each seat has its own frame
+                //duel table: the glowing seam across the middle, and a gold line between the two players on each side
+                Duel.drawSeam(g, x, getHeight() / 2, w);
+                final float line = Math.max(1f, Utils.scale(1.5f));
+                g.fillRect(Duel.GOLD_FAINT, w / 2 - line / 2, 0, line, playerPanelsList.size() == 4 ? getHeight() : getHeight() / 2);
+                return;
             }
             if (Duel.isOn()) { //duel look: a glowing seam between the two halves of the battlefield
                 for (int i = 1; i < playerPanelsList.size(); i++) {
@@ -1320,6 +1324,14 @@ public class MatchScreen extends FScreen {
             }
         }
 
+        //duel table: a player's place, facing the middle of the table (the player bar on the outer edge)
+        private void placeAtTable(VPlayerPanel panel, float x, float y, float w, float h, boolean flipped) {
+            final boolean changed = panel.isFlipped() != flipped;
+            if (changed) { panel.setFlipped(flipped); }
+            panel.setBounds(x, y, w, h);
+            if (changed) { panel.revalidate(true); }
+        }
+
         protected ScrollBounds layoutAndGetScrollBounds(float visibleWidth, float visibleHeight) {
             float totalHeight = visibleHeight + extraHeight;
             int playerCount = playerPanelsList.size(); //not playerPanels, which still holds players who left
@@ -1328,25 +1340,18 @@ public class MatchScreen extends FScreen {
                 avatarHeight *= 0.5f;
             }
 
-            for (VPlayerPanel playerPanel : playerPanelsList) {
-                playerPanel.setSeat(VPlayerPanel.SEAT_BAND);
-            }
             if (Duel.isOn() && Forge.isLandscapeMode() && (playerCount == 3 || playerCount == 4)) {
-                //duel table: you at the bottom, then clockwise the players on the left, across (with 4) and on the right
-                final float sideW = visibleWidth * 0.2f;
-                final float midW = visibleWidth - 2 * sideW;
-                final VPlayerPanel left = playerPanelsList.get(0);
-                final VPlayerPanel right = playerPanelsList.get(playerCount - 2);
-                final VPlayerPanel bottom = playerPanelsList.get(playerCount - 1);
-                left.setSeat(VPlayerPanel.SEAT_LEFT);
-                right.setSeat(VPlayerPanel.SEAT_RIGHT);
-                left.setBounds(0, 0, sideW, visibleHeight);
-                right.setBounds(visibleWidth - sideW, 0, sideW, visibleHeight);
+                //duel table, two sides: the opponents across the table at the top, you at the bottom left and,
+                //with 4 players, the fourth player beside you at the bottom right; with 3, you take the whole bottom
+                final float halfW = visibleWidth / 2, halfH = visibleHeight / 2;
+                placeAtTable(playerPanelsList.get(0), 0, 0, halfW, halfH, true);
+                placeAtTable(playerPanelsList.get(1), halfW, 0, halfW, halfH, true);
+                final VPlayerPanel you = playerPanelsList.get(playerCount - 1);
                 if (playerCount == 4) {
-                    playerPanelsList.get(1).setBounds(sideW, 0, midW, visibleHeight / 2);
-                    bottom.setBounds(sideW, visibleHeight / 2, midW, visibleHeight / 2);
+                    placeAtTable(you, 0, halfH, halfW, halfH, false);
+                    placeAtTable(playerPanelsList.get(2), halfW, halfH, halfW, halfH, false);
                 } else {
-                    bottom.setBounds(sideW, visibleHeight * 0.4f, midW, visibleHeight * 0.6f);
+                    placeAtTable(you, 0, halfH, visibleWidth, halfH, false);
                 }
                 return new ScrollBounds(visibleWidth, visibleHeight);
             }
