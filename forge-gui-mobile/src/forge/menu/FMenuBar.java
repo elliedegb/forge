@@ -1,5 +1,6 @@
 package forge.menu;
 
+import forge.toolbox.Duel;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BooleanSupplier;
@@ -128,6 +129,10 @@ public class FMenuBar extends Header {
     protected void drawBackground(Graphics g) {
         float w = getWidth();
         float h = getHeight();
+        if (Duel.isOn()) {
+            Duel.drawPlate(g, 0, 0, w, h, false, true);
+            return;
+        }
         g.fillRect(isGlass() ? GLASS : getBackColor().getColor(), 0, 0, w, h);
     }
 

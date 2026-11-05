@@ -1,5 +1,6 @@
 package forge.screens.match.views;
 
+import forge.toolbox.Duel;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.Color;
@@ -165,6 +166,9 @@ public class VAvatar extends FDisplayObject {
             g.drawAvatarImage(image, 0, 0, w, h, player.getHasLost(), 0);
         }
 
+        if (Duel.isOn()) {
+            Duel.drawFrame(g, 0, 0, w, h);
+        }
         drawAITimeoutBar(g, w, h);
         if (Forge.altPlayerLayout && Forge.isLandscapeMode())
             return;

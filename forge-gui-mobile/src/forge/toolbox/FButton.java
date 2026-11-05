@@ -91,6 +91,13 @@ public class FButton extends FDisplayObject implements IButton {
         }
     }
 
+    private boolean primary;
+
+    /** the main action, as OK in the match prompt: drawn as the glowing button in the duel look */
+    public void setPrimary(boolean primary0) {
+        primary = primary0;
+    }
+
     public String getText() {
         return text;
     }
@@ -285,8 +292,25 @@ public class FButton extends FDisplayObject implements IButton {
         }
     }
 
+    //duel look: a gold rimmed button, glowing for the main action
+    private void drawDuel(Graphics g) {
+        final float w = getWidth(), h = getHeight();
+        final float inset = corner == Corner.None ? 0 : Utils.scale(4);
+        Duel.drawButton(g, inset, inset, w - 2 * inset, h - 2 * inset, isHovered() || isToggled(), pressed, isEnabled(), primary);
+        if (!StringUtils.isEmpty(text)) {
+            String displayText = text;
+            if (corner == Corner.BottomLeft || corner == Corner.BottomRight)
+                displayText = displayText.replaceFirst(" ", "\n");
+            g.drawText(displayText, font, Duel.textColor(primary, isEnabled()), PADDING, 0, w - 2 * PADDING, h, false, Align.center, true);
+        }
+    }
+
     @Override
     public void draw(Graphics g) {
+        if (Duel.isOn()) {
+            drawDuel(g);
+            return;
+        }
         if (Frost.isOn() /*&& corner == Corner.None*/) {
             drawFrosted(g);
             return;

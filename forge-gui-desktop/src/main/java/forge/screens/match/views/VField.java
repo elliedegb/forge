@@ -17,6 +17,11 @@
  */
 package forge.screens.match.views;
 
+import java.awt.RenderingHints;
+import java.awt.Graphics2D;
+import java.awt.GradientPaint;
+import java.awt.BasicStroke;
+import forge.gui.CommanderEdition;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics;
@@ -89,11 +94,53 @@ public class VField implements IVDoc<CField> {
     private final PlayArea tabletop;
     private final SkinnedPanel avatarArea = new SkinnedPanel() {
         @Override
+        protected void paintComponent(final Graphics g) {
+            super.paintComponent(g);
+            if (CommanderEdition.isEnabled()) { paintDuelLifeBadge(g); }
+        }
+
+        @Override
         protected void paintChildren(final Graphics g) {
             super.paintChildren(g);
+            if (CommanderEdition.isEnabled()) { paintDuelAvatarFrame(g); }
             paintAITimeoutBar(g);
         }
     };
+
+    // ---- Commander edition duel look: gold frame on the avatar, the life total on a gold framed badge ----
+    private static final Color DUEL_GOLD = new Color(226, 184, 92);
+    private static final Color DUEL_STEEL_TOP = new Color(56, 66, 98);
+    private static final Color DUEL_STEEL_BOTTOM = new Color(22, 27, 46);
+
+    private void paintDuelLifeBadge(final Graphics g) {
+        final Rectangle r = lblLife.getBounds();
+        if (r.width <= 0 || r.height <= 0) { return; }
+        final Graphics2D g2 = (Graphics2D) g.create();
+        try {
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            final int w = Math.min(r.width - 4, r.height * 3), h = r.height - 2;
+            final int x = r.x + (r.width - w) / 2, y = r.y + 1;
+            g2.setColor(DUEL_GOLD);
+            g2.fillRoundRect(x, y, w, h, h, h);
+            g2.setPaint(new GradientPaint(0, y, DUEL_STEEL_TOP, 0, y + h, DUEL_STEEL_BOTTOM));
+            g2.fillRoundRect(x + 2, y + 2, w - 4, h - 4, h - 4, h - 4);
+        } finally {
+            g2.dispose();
+        }
+    }
+
+    private void paintDuelAvatarFrame(final Graphics g) {
+        final Rectangle r = lblAvatar.getBounds();
+        if (r.width <= 0 || r.height <= 0) { return; }
+        final Graphics2D g2 = (Graphics2D) g.create();
+        try {
+            g2.setColor(DUEL_GOLD);
+            g2.setStroke(new BasicStroke(2f));
+            g2.drawRect(r.x + 1, r.y + 1, r.width - 2, r.height - 2);
+        } finally {
+            g2.dispose();
+        }
+    }
 
     // ---- AI "thinking" timer bar over the avatar (shrinks to 0 at the AI timeout) ----
     private static final Color BAR_BG = new Color(0, 0, 0, 165);

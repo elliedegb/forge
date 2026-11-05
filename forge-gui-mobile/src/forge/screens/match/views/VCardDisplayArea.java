@@ -401,8 +401,49 @@ public abstract class VCardDisplayArea extends VDisplayArea implements ActivateH
         return (cardWidth - 2 * FCardPanel.PADDING) * FCardPanel.ASPECT_RATIO + 2 * FCardPanel.PADDING; //ensure aspect ratio maintained after padding applied
     }
 
+    /** @return true when the cards run down a column instead of along a row, as on the side seats of the duel table */
+    protected boolean isVerticalColumn() { return false; }
+
+    private int countStack(CardAreaPanel panel) {
+        int count = 1;
+        for (CardAreaPanel attached : panel.getAttachedPanels()) {
+            if (attached != null) { count += countStack(attached); }
+        }
+        if (panel.getNextPanelInStack() != null) { count += countStack(panel.getNextPanelInStack()); }
+        return count;
+    }
+
+    //cards down a column, overlapping like a cascade when they do not fit so each one's name stays visible
+    private ScrollBounds layoutColumn(float visibleWidth, float visibleHeight) {
+        orderedCards.get().clear();
+        infoGhostCardIds.get().clear();
+        final List<CardAreaPanel> panels = new ArrayList<>();
+        for (CardAreaPanel panel : cardPanels.get()) {
+            if (panel != null) { panels.add(panel); }
+        }
+        int maxCount = 1;
+        for (CardAreaPanel panel : panels) { maxCount = Math.max(maxCount, countStack(panel)); }
+        final float cardWidth = Math.min(visibleWidth * 0.9f, visibleWidth / (1 + (maxCount - 1) * getCardStackOffset()));
+        final float cardHeight = getCardHeight(cardWidth);
+        final int n = panels.size();
+        float step = cardHeight;
+        if (n > 1 && cardHeight * n > visibleHeight) {
+            step = Math.max(cardHeight * 0.24f, (visibleHeight - cardHeight) / (n - 1));
+        }
+        float y = 0;
+        for (CardAreaPanel panel : panels) {
+            addCards(panel, 0, y, cardWidth, cardHeight);
+            y += step;
+        }
+        final float end = n == 0 ? 0 : y - step + cardHeight;
+        return new ScrollBounds(visibleWidth, Math.max(visibleHeight, end));
+    }
+
     @Override
     protected ScrollBounds layoutAndGetScrollBounds(float visibleWidth, float visibleHeight) {
+        if (isVerticalColumn()) {
+            return layoutColumn(visibleWidth, visibleHeight);
+        }
         //room at the right end that something floating over the area (a zone box) covers: cards stay clear of it or can be scrolled clear
         final float pad = Math.max(0f, getEndPadding());
         final float usable = Math.max(1f, visibleWidth - pad);
@@ -446,6 +487,10 @@ public abstract class VCardDisplayArea extends VDisplayArea implements ActivateH
 
     @Override
     protected void startClip(Graphics g) {
+        if (isVerticalColumn()) { //tapped cards turn sideways and may reach past the column
+            g.startClip(-getWidth() * 0.3f, 0, getWidth() * 1.6f, getHeight());
+            return;
+        }
         //prevent clipping top and bottom
         float h = getHeight();
         g.startClip(0, -h, getWidth(), 3 * h);

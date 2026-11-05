@@ -1,5 +1,6 @@
 package forge.screens.match.views;
 
+import forge.toolbox.Duel;
 import com.badlogic.gdx.graphics.Color;
 import forge.Forge;
 import org.apache.commons.lang3.StringUtils;
@@ -157,6 +158,7 @@ public class VPrompt extends FContainer {
         lblMessage.setLeft(BTN_WIDTH);
         lblMessage.setHeight(HEIGHT);
         btnOk = add(new FButton(okText, okCommand));
+        btnOk.setPrimary(true);
         btnCancel = add(new CancelButton(cancelText, e -> onCancelPressed(cancelCommand, e)));
         btnUndo = add(new UndoButton());
         btnMenu = add(new MenuButton());
@@ -381,6 +383,10 @@ public class VPrompt extends FContainer {
 
     @Override
     protected void drawBackground(Graphics g) {
+        if (Duel.isOn()) {
+            Duel.drawPlate(g, 0, 0, getWidth(), getHeight(), true, false);
+            return;
+        }
         if (isFrostedMatch()) {
             //the match's own prompt lets the background show through, a dialog's prompt must hide what is behind it
             g.fillRect(overMatch ? COMPACT_SCRIM : GLASS_SOLID, 0, 0, getWidth(), getHeight());

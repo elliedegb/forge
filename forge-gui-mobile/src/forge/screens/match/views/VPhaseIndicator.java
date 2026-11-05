@@ -1,5 +1,6 @@
 package forge.screens.match.views;
 
+import forge.toolbox.Duel;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BooleanSupplier;
@@ -229,7 +230,7 @@ public class VPhaseIndicator extends FContainer {
             drawCompactStops(g);
             return;
         }
-        if (!Forge.isLandscapeMode() || !HIDE_PHASESTOP) { // TODO: Add better design or recreate a new widget
+        if (!Forge.isLandscapeMode() || !HIDE_PHASESTOP || Duel.isOn()) { // TODO: Add better design or recreate a new widget
             super.draw(g);
             return;
         }

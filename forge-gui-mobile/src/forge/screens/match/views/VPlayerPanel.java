@@ -1,5 +1,8 @@
 package forge.screens.match.views;
 
+import java.util.List;
+import java.util.ArrayList;
+import forge.toolbox.Duel;
 import java.util.*;
 
 import com.badlogic.gdx.Gdx;
@@ -85,9 +88,9 @@ public class VPlayerPanel extends FContainer {
     private static final float COMPACT_FLING_WINDOW_MS = 300f;     //a fling this soon after a drag belongs to the tab scroller
     private static final float COMPACT_SCROLL_GAP = Utils.scale(2); //clear space between the scroll bar and the tabs
     private static final float COMPACT_PANEL_MARGIN = 0;  //gap between the rounded control panel and the screen edge, the field and the other panel
-    private static final Color COMPACT_GLASS = new Color(30 / 255f, 35 / 255f, 40 / 255f, 0.62f);
-    private static final Color COMPACT_ZONE_OVER = new Color(30 / 255f, 35 / 255f, 40 / 255f, 0.80f);
-    private static final Color COMPACT_ZONE = new Color(30 / 255f, 35 / 255f, 40 / 255f, 0.62f);
+    private static final Color COMPACT_GLASS = Duel.glass(0.62f);
+    private static final Color COMPACT_ZONE_OVER = Duel.glass(0.80f);
+    private static final Color COMPACT_ZONE = Duel.glass(0.62f);
     private static final Color COMPACT_GLASS_CHIP = new Color(1f, 1f, 1f, 0.10f);
     private static final Color COMPACT_GLASS_EDGE = new Color(1f, 1f, 1f, 0.10f);
     private static final float COMPACT_PANEL_RADIUS = Utils.scale(8);  //corner radius of the control panel
@@ -101,6 +104,7 @@ public class VPlayerPanel extends FContainer {
 
     /** @return true if the compact landscape layout is in use (it needs landscape mode and the "Use Compact Layout" setting) */
     public static boolean isCompactLayout() {
+        if (Duel.isOn()) { return false; } //the duel look has its own table layout
         if (!Forge.isLandscapeMode()) { return false; }
         if (compactLayoutCache < 0) { reloadCompactLayout(); }
         return compactLayoutCache > 0;
@@ -218,7 +222,7 @@ public class VPlayerPanel extends FContainer {
 
     /** @return true if the open card zone is a horizontal box instead of a side column (alternate and compact layouts) */
     public static boolean isAltZoneLayout() {
-        if (!Forge.isLandscapeMode()) { return false; }
+        if (!Forge.isLandscapeMode() || Duel.isOn()) { return false; }
         if (isCompactLayout()) { return true; }
         if (altZoneLayoutCache < 0) { reloadAltZoneLayout(); }
         return altZoneLayoutCache == 1;
@@ -458,7 +462,7 @@ public class VPlayerPanel extends FContainer {
             this.selectedTab.setDisplayVisible(true);
             startSlideAnimation(wasClosed);
         }
-        if (isCompactLayout()) { syncCommandZone(); }
+        if (isCompactLayout() && !isSideSeat()) { syncCommandZone(); }
 
         if (MatchController.getView() != null) {
             MatchController.getView().revalidate();
@@ -468,7 +472,7 @@ public class VPlayerPanel extends FContainer {
     private void startSlideAnimation(boolean fieldToo) {
         stopSlideAnimation();
         boxWidthCur = -1f; //the card zone box snaps to the size of the newly selected zone
-        if (!Forge.isLandscapeMode() || getWidth() <= 0) {
+        if (!Forge.isLandscapeMode() || Duel.isOn() || getWidth() <= 0) {
             slideProgress = 1f;
             slideFieldToo = false;
             return;
@@ -485,7 +489,7 @@ public class VPlayerPanel extends FContainer {
     }
 
     private boolean startSlideOut() {
-        if (!Forge.isLandscapeMode() || getWidth() <= 0) { return false; }
+        if (!Forge.isLandscapeMode() || Duel.isOn() || getWidth() <= 0) { return false; }
         if (slideClosing) { return true; }
         stopSlideAnimation();
         slideClosing = true;
@@ -700,7 +704,12 @@ public class VPlayerPanel extends FContainer {
 
     @Override
     protected void doLayout(float width, float height) {
-        if (Forge.isLandscapeMode()) {
+        field.setVertical(isSideSeat(), seat == SEAT_LEFT);
+        if (isSideSeat()) {
+            doSideLayout(width, height);
+            return;
+        }
+        if (Forge.isLandscapeMode() && !Duel.isOn()) { //the duel look lays out its bars the same way in both orientations
             doLandscapeLayout(width, height);
             return;
         }
@@ -714,6 +723,10 @@ public class VPlayerPanel extends FContainer {
         phaseButton.setVisible(false);
         phaseIndicator.syncCompactVisibility();
         restoreAvatarSize();
+        if (Duel.isOn()) {
+            doDuelPortraitLayout(width, height);
+            return;
+        }
         //layout for bottom panel by default
         float x = avatarHeight;
         float w = width - avatarHeight;
@@ -777,6 +790,172 @@ public class VPlayerPanel extends FContainer {
         }
 
         //this is used for landscape so set this to 0
+        field.setContentAlignment(0f);
+        field.setFieldModifier(0);
+    }
+
+    //seat at the duel table in landscape with 3 or 4 players
+    public static final int SEAT_BAND = 0, SEAT_LEFT = 1, SEAT_RIGHT = 2;
+    private int seat = SEAT_BAND;
+    private float sideInfoHeight;
+
+    public void setSeat(int seat0) {
+        if (seat == seat0) { return; }
+        seat = seat0;
+        stopSlideAnimation();
+        slideProgress = 1f;
+    }
+
+    /** @return true when this player sits on the left or right side of the duel table */
+    public boolean isSideSeat() {
+        return seat != SEAT_BAND && Forge.isLandscapeMode() && Duel.isOn();
+    }
+
+    /**
+     * A side seat of the duel table: a column with the avatar, life and tabs at the top, the open zone under them,
+     * the battlefield as two columns of cards (lands on the outer side) and the commander at the bottom.
+     */
+    private void doSideLayout(float width, float height) {
+        stopCommandAnimation();
+        commandOpen = false;
+        commandProgress = 0f;
+        tabStrip.setVisible(false);
+        phaseButton.setVisible(false);
+        phaseIndicator.setVisible(false); //the side seats have no room for the phase strip; the turn owner's bar shows it
+        final float gap = Utils.scale(3);
+        final float info = Math.min(VAvatar.HEIGHT, width * 0.24f);
+        sideInfoHeight = info;
+        avatar.setBounds(gap, gap, info - 2 * gap, info - 2 * gap);
+        final float lifeW = LIFE_FONT.getBounds("99").width * 1.6f;
+        lblLife.setBounds(avatar.getRight() + gap, info * 0.15f, lifeW, info * 0.7f);
+        final List<InfoTab> shown = new ArrayList<>();
+        for (InfoTab tab : tabs) {
+            boolean show = tab.isTabShown();
+            tab.setVisible(show);
+            if (show) { shown.add(tab); }
+        }
+        //the tabs get a row of their own under the avatar, wide enough to read
+        final float tw = shown.isEmpty() ? 0 : (width - 2 * gap) / shown.size();
+        final float th = Math.min(info * 0.95f, tw * 1.3f);
+        float x = gap;
+        for (InfoTab tab : shown) {
+            tab.setBounds(x, info, tw, th);
+            x += tw;
+        }
+        sideInfoHeight = info + th;
+        float y = sideInfoHeight;
+        final float displayH = Math.min(width * 0.62f, height * 0.3f);
+        for (InfoTab tab : tabs) {
+            tab.setDisplayBounds(0, y, width, displayH);
+        }
+        if (selectedTab != null) { y += displayH; }
+
+        final int cmdCount = commandZone.getCount();
+        float bottom = height;
+        commandZone.setVisible(cmdCount > 0);
+        if (cmdCount > 0) {
+            final float cmdH = Math.min(height * 0.22f, (height - y) * 0.35f);
+            final float cmdW = Math.min(width, Math.min(cmdCount, 2) * commandZone.getCardWidth(cmdH));
+            commandZone.setBounds((width - cmdW) / 2, height - cmdH, cmdW, cmdH);
+            bottom -= cmdH;
+        }
+        field.setCommandZoneWidth(0);
+        field.setBounds(0, y, width, Math.max(0f, bottom - y));
+        field.setContentAlignment(0f);
+        field.setFieldModifier(0);
+    }
+
+    /** @return true for the library, graveyard and exile tabs, which the duel look draws as card piles */
+    private boolean isPileTab(InfoTab tab) {
+        return tab == zoneTabs.get(ZoneType.Library) || tab == zoneTabs.get(ZoneType.Graveyard) || tab == zoneTabs.get(ZoneType.Exile);
+    }
+
+    /**
+     * Duel look in portrait, like the table of a digital card game: the avatar in the middle of the player bar,
+     * the library, graveyard and exile piles on its left, the life total and the other tabs on its right,
+     * the phases along the edge of the screen and the hand above the bar.
+     */
+    //the player bar keeps its full height at the duel table in landscape, where the bands are tall enough
+    private float getDuelBarHeight() {
+        return Forge.isLandscapeMode() ? VAvatar.HEIGHT : avatarHeight;
+    }
+
+    private void doDuelPortraitLayout(float width, float height) {
+        phaseIndicator.setVisible(true);
+        final float bar = getDuelBarHeight();
+        final float phaseH = phaseIndicator.getPreferredHeight(width) * (bar < VAvatar.HEIGHT ? 0.6f : 1f);
+        phaseIndicator.setBounds(0, height - phaseH, width, phaseH);
+
+        float y = height - bar;
+        //the hand gets more room than the other zones, so its cards read like cards held in a hand
+        final float displayAreaHeight = displayAreaHeightFactor * y * (selectedTab == zoneTabs.get(ZoneType.Hand) ? (Forge.isLandscapeMode() ? 0.55f : 0.42f) : 1f / 3f);
+        for (InfoTab tab : tabs) {
+            tab.setDisplayBounds(0, y - displayAreaHeight, width, displayAreaHeight);
+        }
+
+        final float rowH = bar - phaseH;
+        final float gap = Utils.scale(4);
+        final float cx = width / 2;
+        avatar.setBounds(cx - rowH / 2, y, rowH, rowH);
+        final float lifeW = LIFE_FONT.getBounds("99").width * 1.7f;
+        lblLife.setBounds(avatar.getRight() + gap, y + rowH * 0.12f, lifeW, rowH * 0.76f);
+
+        final List<InfoTab> left = new ArrayList<>(), right = new ArrayList<>();
+        for (InfoTab tab : tabs) {
+            boolean show = tab.isTabShown();
+            tab.setVisible(show);
+            if (show) { (isPileTab(tab) ? left : right).add(tab); }
+        }
+        final float tileW = rowH * 0.8f;
+        //piles end next to the avatar
+        float leftRoom = avatar.getLeft() - gap;
+        float lw = left.isEmpty() ? 0 : Math.min(tileW, leftRoom / left.size());
+        float x = avatar.getLeft() - gap - lw * left.size();
+        for (InfoTab tab : left) {
+            tab.setBounds(x, y, lw, rowH);
+            x += lw;
+        }
+        //the other tabs follow the life total
+        x = lblLife.getRight() + gap;
+        float rw = right.isEmpty() ? 0 : Math.min(tileW, (width - x) / right.size());
+        for (InfoTab tab : right) {
+            tab.setBounds(x, y, rw, rowH);
+            x += rw;
+        }
+
+        if (selectedTab != null) {
+            y -= displayAreaHeight;
+        }
+
+        int cmdCount = commandZone.getCount();
+        //landscape: the commander sits at the end of the open zone's row, beside the hand, where there is room
+        final boolean cmdInZoneRow = selectedTab != null && Forge.isLandscapeMode();
+        float cmdHeight = cmdInZoneRow ? displayAreaHeight : y / 2;
+        float cmdWidth = Math.min(cmdCount, 2) * commandZone.getCardWidth(cmdHeight);
+        field.setCommandZoneWidth(cmdCount > 0 && !cmdInZoneRow ? cmdWidth + 1 : 0);
+        field.setBounds(0, 0, width, y);
+        if (cmdInZoneRow && cmdCount > 0) { //the open zone stops short of the commander
+            for (InfoTab tab : tabs) {
+                tab.setDisplayBounds(0, y, width - cmdWidth - gap, displayAreaHeight);
+            }
+        }
+
+        if (isFlipped()) {
+            for (FDisplayObject child : getChildren()) {
+                child.setTop(height - child.getBottom());
+            }
+        }
+
+        commandZone.setVisible(cmdCount > 0);
+        if (cmdCount > 0) {
+            float top;
+            if (cmdInZoneRow) {
+                top = isFlipped() ? height - y - displayAreaHeight : y;
+            } else {
+                top = isFlipped() ? height - y : y - cmdHeight;
+            }
+            commandZone.setBounds(width - cmdWidth, top, cmdWidth, cmdHeight);
+        }
         field.setContentAlignment(0f);
         field.setFieldModifier(0);
     }
@@ -1538,7 +1717,19 @@ public class VPlayerPanel extends FContainer {
 
     @Override
     public void drawBackground(Graphics g) {
-        if (Forge.isLandscapeMode()) {
+        if (isSideSeat()) { //duel table side seat: a glass column, the player bar on a gold trimmed plate
+            final float w = getWidth(), h = getHeight();
+            g.fillRect(Duel.glass(0.45f), 0, 0, w, h);
+            Duel.drawPlate(g, 0, 0, w, sideInfoHeight, false, true);
+            final float edge = Math.max(1f, Utils.scale(1.5f));
+            g.fillRect(Duel.GOLD_FAINT, seat == SEAT_LEFT ? w - edge : 0, 0, edge, h);
+            if (selectedTab != null && selectedTab.getDisplayArea() != null) {
+                final VDisplayArea area = selectedTab.getDisplayArea();
+                g.fillRect(Duel.glass(0.85f), area.getLeft(), area.getTop(), area.getWidth(), area.getHeight());
+            }
+            return;
+        }
+        if (Forge.isLandscapeMode() && !Duel.isOn()) {
             FSkinColor tabBg = FSkinColor.get(Forge.isMobileAdventureMode ? Colors.ADV_CLR_THEME2 : Colors.CLR_THEME2);
             if (commonTabWidth > 0) {
                 if (isFrosted()) { g.fillRect(COMPACT_GLASS, getWidth() - commonTabWidth, 0, commonTabWidth, getHeight()); }
@@ -1555,7 +1746,11 @@ public class VPlayerPanel extends FContainer {
                 g.fillRect(tabBg, getColumnX(), 0, tabColWidth, getHeight());
             }
         } else {
-            g.fillRect(isFrosted() ? COMPACT_GLASS : Color.BLACK, 0, avatar.getTop(), getWidth(), avatarHeight);
+            if (Duel.isOn()) { //duel look: a midnight plate with gold trim behind the avatar, life and zone tabs
+                Duel.drawPlate(g, 0, isFlipped() ? 0 : getHeight() - getDuelBarHeight(), getWidth(), getDuelBarHeight(), true, true);
+            } else {
+                g.fillRect(isFrosted() ? COMPACT_GLASS : Color.BLACK, 0, avatar.getTop(), getWidth(), avatarHeight);
+            }
         }
         float y;
         InfoTab infoTab = selectedTab;
@@ -1729,7 +1924,13 @@ public class VPlayerPanel extends FContainer {
                 }
             } else {
                 if (poisonCounters == 0 && energyCounters == 0 && manaShards == 0) {
-                    g.drawText(lifeStr, LIFE_FONT, getInfoForeColor(), 0, 0, getWidth(), getHeight(), false, Align.center, true);
+                    if (Duel.isOn()) { //the life total on a gold framed badge
+                        final float m = Utils.scale(2);
+                        Duel.drawBadge(g, m, m, getWidth() - 2 * m, getHeight() - 2 * m, false);
+                        g.drawText(lifeStr, LIFE_FONT, Duel.GOLD_LIGHT, 0, 0, getWidth(), getHeight(), false, Align.center, true);
+                    } else {
+                        g.drawText(lifeStr, LIFE_FONT, getInfoForeColor(), 0, 0, getWidth(), getHeight(), false, Align.center, true);
+                    }
                 } else {
                     float halfHeight = getHeight() / 2;
                     float textStart = halfHeight + Utils.scale(1);
@@ -1884,7 +2085,31 @@ public class VPlayerPanel extends FContainer {
             }
         }
 
+        //duel look: each tab is a small gold rimmed tile, and the library, graveyard and exile tabs are card piles
+        private boolean drawDuelTile(Graphics g) {
+            if (!Duel.isOn()) { return false; }
+            final float w = getWidth(), h = getHeight();
+            final float pad = Utils.scale(3);
+            final boolean pile = isPileTab(this);
+            final float th = h - 2 * pad;
+            final float tw = Math.min(w - 2 * pad, th * (pile ? 0.72f : 0.9f));
+            final float tx = (w - tw) / 2, ty = pad;
+            if (pile) {
+                Duel.drawPile(g, tx, ty, tw, th, isSelected(), isHovered());
+            } else {
+                Duel.drawTile(g, tx, ty, tw, th, isSelected(), isHovered());
+            }
+            final FSkinImageInterface icon = getIcon();
+            final float iconSize = Math.min(tw * 0.62f, th * 0.42f);
+            final float iw = icon.getWidth() >= icon.getHeight() ? iconSize : iconSize * icon.getWidth() / icon.getHeight();
+            final float ih = icon.getWidth() >= icon.getHeight() ? iconSize * icon.getHeight() / icon.getWidth() : iconSize;
+            g.drawImage(icon, tx + (tw - iw) / 2, ty + th * 0.1f + (iconSize - ih) / 2, iw, ih);
+            g.drawText(value, INFO_FONT, Duel.TEXT, tx, ty + th * 0.55f, tw, th * 0.42f, false, Align.center, true);
+            return true;
+        }
+
         private void drawTab(Graphics g) {
+            if (drawDuelTile(g)) { return; }
             if (Forge.isLandscapeMode() && isCommonZone() && !isFrosted()) {
                 g.fillRect(FSkinColor.get(Forge.isMobileAdventureMode ? Colors.ADV_CLR_THEME2 : Colors.CLR_THEME2), 0, 0, getWidth(), getHeight());
             }
@@ -2098,7 +2323,7 @@ public class VPlayerPanel extends FContainer {
         commandOpen = open;
         stopCommandAnimation();
         if (open) { commandZone.setVisible(true); }
-        if (!Forge.isLandscapeMode() || getWidth() <= 0) {
+        if (!Forge.isLandscapeMode() || Duel.isOn() || getWidth() <= 0) {
             commandProgress = open ? 1f : 0f;
             commandZone.setVisible(open);
             return;
@@ -2344,7 +2569,7 @@ public class VPlayerPanel extends FContainer {
         protected void refreshCardPanels(Iterable<CardView> model) {
             int oldCount = getCount();
             super.refreshCardPanels(model);
-            if (!Forge.isLandscapeMode() && getCount() != oldCount) {
+            if ((!Forge.isLandscapeMode() || Duel.isOn()) && getCount() != oldCount) {
                 setVisible(getCount() > 0);
                 VPlayerPanel.this.revalidate();
             }
@@ -2357,10 +2582,10 @@ public class VPlayerPanel extends FContainer {
 
         @Override
         public void draw(Graphics g) {
-            if (Forge.isLandscapeMode() && commandVisibleWidth < 1f) {
+            if (Forge.isLandscapeMode() && !Duel.isOn() && commandVisibleWidth < 1f) {
                 return;
             }
-            if (commandProgress < 1f && Forge.isLandscapeMode()) {
+            if (commandProgress < 1f && Forge.isLandscapeMode() && !Duel.isOn()) {
                 //only the part that has slid out from the field edge is visible
                 g.startClip(isCompactRight() ? getWidth() - commandVisibleWidth : 0, 0, commandVisibleWidth, getHeight());
                 try {

@@ -1,5 +1,8 @@
 package forge.screens;
 
+import com.badlogic.gdx.utils.Align;
+import forge.assets.FSkinFont;
+import forge.toolbox.Duel;
 import com.badlogic.gdx.Input.Keys;
 
 import forge.Forge;
@@ -78,7 +81,11 @@ public abstract class LaunchScreen extends FScreen {
 
         @Override
         public void draw(Graphics g) {
-            if (Frost.isOn()) {
+            if (Duel.isOn()) {
+                final float w = getWidth(), h = getHeight();
+                Duel.drawButton(g, 0, 0, w, h * 0.6f, isHovered(), pressed, isEnabled(), true);
+                g.drawText(Forge.getLocalizer().getMessage("lblStart"), FSkinFont.forHeight(h * 0.6f / 1.6f), Duel.textColor(true, isEnabled()), 0, 0, w, h * 0.6f, false, Align.center, true);
+            } else if (Frost.isOn()) {
                 final float w = getWidth(), h = getHeight();
                 Frost.drawButton(g, w, h * 0.6f, isHovered(), pressed, isEnabled(), Forge.getLocalizer().getMessage("lblStart"));
             } else if (Forge.hdstart) {

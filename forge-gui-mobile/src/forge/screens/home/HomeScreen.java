@@ -1,5 +1,7 @@
 package forge.screens.home;
 
+import forge.assets.FSkinTexture;
+import forge.toolbox.Duel;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -46,10 +48,10 @@ public class HomeScreen extends FScreen {
     private static final Color CE_LINE = new Color(88 / 255f, 103 / 255f, 129 / 255f, 1f);
     private static final Color CE_ACCENT = new Color(140 / 255f, 220 / 255f, 248 / 255f, 1f);
     private static final Color CE_ACCENT_DOWN = new Color(104 / 255f, 186 / 255f, 220 / 255f, 1f);
-    private static final Color CE_HERO_EDGE = new Color(140 / 255f, 220 / 255f, 248 / 255f, 0.55f);
-    private static final Color CE_HERO_FILL = new Color(23 / 255f, 29 / 255f, 50 / 255f, 1f);
-    private static final Color CE_BG_TOP = new Color(11 / 255f, 16 / 255f, 32 / 255f, 1f);
-    private static final Color CE_BG_BOTTOM = new Color(18 / 255f, 26 / 255f, 51 / 255f, 1f);
+    private static final Color CE_HERO_EDGE = new Color(226 / 255f, 184 / 255f, 92 / 255f, 0.85f);
+    private static final Color CE_HERO_FILL = new Color(12 / 255f, 16 / 255f, 31 / 255f, 1f);
+    private static final Color CE_BG_TOP = new Color(7 / 255f, 9 / 255f, 19 / 255f, 0.55f);
+    private static final Color CE_BG_BOTTOM = new Color(7 / 255f, 9 / 255f, 19 / 255f, 0.92f);
     private static final Color CE_TILE = new Color(23 / 255f, 29 / 255f, 50 / 255f, 1f);
     private static final Color CE_INK = new Color(16 / 255f, 36 / 255f, 54 / 255f, 1f);
     private static final Color CE_TEXT = new Color(246 / 255f, 243 / 255f, 1f, 1f);
@@ -289,6 +291,11 @@ public class HomeScreen extends FScreen {
         super.drawBackground(g);
 
         if (commanderLayout()) { //navy backdrop as in the app, then the hero card behind the logo, the title and New Game
+            //the battlefield art under a dark wash, as on a card game's title screen
+            FSkinTexture art = FSkinTexture.BG_MATCH;
+            float artH = getHeight(), artW = art.getHeight() > 0 ? artH * art.getWidth() / art.getHeight() : getWidth();
+            if (artW < getWidth()) { artH *= getWidth() / artW; artW = getWidth(); }
+            g.drawImage(art, (getWidth() - artW) / 2, 0, artW, artH);
             g.fillGradientRect(CE_BG_TOP, CE_BG_BOTTOM, true, 0, 0, getWidth(), getHeight());
             float radius = CE_PAD * 1.4f, x = CE_PAD, w = getWidth() - 2 * CE_PAD;
             //the edge is a rounded fill under the card: drawRoundRect leaves straight lines inside the corners
@@ -297,7 +304,7 @@ public class HomeScreen extends FScreen {
             g.fillRoundRect(CE_HERO_FILL, x + edge, heroTop + edge, w - 2 * edge, heroBottom - heroTop - 2 * edge, radius - edge);
             float tx = 2 * CE_PAD, tw = heroTextRight - tx, ty = lblLogo.getTop();
             FSkinFont eyebrow = FSkinFont.get(11), title = FSkinFont.get(26), body = FSkinFont.get(13);
-            g.drawText("FORGE \u00b7 COMMANDER EDITION", eyebrow, CE_ACCENT, tx, ty, tw, eyebrow.getLineHeight(), false, Align.left, false);
+            g.drawText("FORGE \u00b7 COMMANDER EDITION", eyebrow, Duel.GOLD, tx, ty, tw, eyebrow.getLineHeight(), false, Align.left, false);
             ty += eyebrow.getLineHeight() * 1.3f;
             g.drawText(Forge.getLocalizer().getMessageorUseDefault("lblCommander", "Commander"), title, CE_TEXT, tx, ty, tw, title.getLineHeight(), false, Align.left, false);
             ty += title.getLineHeight() * 1.1f;
@@ -399,17 +406,11 @@ public class HomeScreen extends FScreen {
         public void draw(Graphics g) {
             if (commanderLayout()) { //rounded Scry Magic tiles; New Game is the accent button
                 boolean primary = buttons.indexOf(this) == 0, down = isPressed();
-                float radius = CE_PAD;
-                if (primary) {
-                    g.fillRoundRect(down ? CE_ACCENT_DOWN : CE_ACCENT, 0, 0, getWidth(), getHeight(), radius);
-                } else {
-                    float edge = Utils.scale(1f);
-                    g.fillRoundRect(CE_LINE, 0, 0, getWidth(), getHeight(), radius);
-                    g.fillRoundRect(down || isHovered() ? CE_RAISED : CE_TILE, edge, edge, getWidth() - 2 * edge, getHeight() - 2 * edge, radius - edge);
-                }
+                //duel buttons: the glowing ember button for New Game, gold rimmed steel tiles for the rest
+                Duel.drawButton(g, 0, 0, getWidth(), getHeight(), isHovered(), down, true, primary);
                 //long single words such as Achievements get a smaller font instead of breaking mid-word
-                FSkinFont font = primary ? FSkinFont.get(18) : FSkinFont.get(getText().length() > 10 ? 10 : 11);
-                g.drawText(primary ? "\u25b6  " + getText() : getText(), font, primary ? CE_INK : CE_TEXT, CE_PAD / 2, 0, getWidth() - CE_PAD, getHeight(), getText().contains(" "), Align.center, true);
+                FSkinFont font = primary ? FSkinFont.get(20) : FSkinFont.get(getText().length() > 10 ? 10 : 11);
+                g.drawText(getText(), font, Duel.textColor(primary, true), CE_PAD / 2, 0, getWidth() - CE_PAD, getHeight(), getText().contains(" "), Align.center, true);
                 return;
             }
             if (Forge.isLandscapeMode()) {

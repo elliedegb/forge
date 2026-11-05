@@ -1,5 +1,6 @@
 package forge.screens;
 
+import forge.toolbox.Duel;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -178,6 +179,10 @@ public abstract class FScreen extends FContainer {
         float w = getWidth();
         float h = getHeight();
         g.drawImage(Forge.isMobileAdventureMode ? FSkinTexture.ADV_BG_TEXTURE : FSkinTexture.BG_TEXTURE, 0, 0, w, h);
+        if (Duel.isOn()) { //duel look: the texture under a midnight wash
+            g.fillGradientRect(Duel.PANEL_TOP, Duel.NIGHT, true, 0, 0, w, h);
+            return;
+        }
         if (Frost.isOn()) { //frosted: the background shows through a dark slate wash instead of the theme colour
             g.fillRect(Frost.slate(0.78f), 0, 0, w, h);
             return;
@@ -231,6 +236,10 @@ public abstract class FScreen extends FContainer {
 
         @Override
         public void drawBackground(Graphics g) {
+            if (Duel.isOn()) {
+                Duel.drawPlate(g, 0, 0, getWidth(), getHeight(), false, false);
+                return;
+            }
             g.fillRect(getBackColor(), 0, 0, getWidth(), getHeight());
         }
 
@@ -242,7 +251,11 @@ public abstract class FScreen extends FContainer {
                 return;
             }
             float y = HEIGHT - LINE_THICKNESS / 2;
-            g.drawLine(LINE_THICKNESS, getLineColor(), 0, y, getWidth(), y);
+            if (Duel.isOn()) {
+                Duel.drawTrim(g, 0, y - LINE_THICKNESS, getWidth(), LINE_THICKNESS);
+            } else {
+                g.drawLine(LINE_THICKNESS, getLineColor(), 0, y, getWidth(), y);
+            }
         }
 
         @Override

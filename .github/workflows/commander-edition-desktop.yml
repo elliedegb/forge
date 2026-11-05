@@ -42,9 +42,27 @@ jobs:
       - name: Collect the files
         run: |
           mkdir dist
-          mv forge-installer/target/*.tar.bz2 forge-installer/target/*.jar dist/ 2>/dev/null || true
+          mv forge-installer/target/*.tar.bz2 dist/
           ls -la dist
           test -n "$(ls dist)"
+
+      # The Commander edition uses the same interface on desktop as on Android (the duel table, the hand as a fan):
+      # the forge launchers start it, and the old desktop interface stays available as forge-classic.
+      - name: Make the Android interface the main launcher
+        run: |
+          for pkg in dist/*.tar.bz2; do
+            rm -rf unpacked && mkdir unpacked
+            tar -xjf "$pkg" -C unpacked
+            dir="$(dirname "$(find unpacked -name 'forge-adventure.sh' | head -n 1)")"
+            test -d "$dir"
+            for ext in sh cmd exe command; do
+              if [ -f "$dir/forge.$ext" ]; then mv "$dir/forge.$ext" "$dir/forge-classic.$ext"; fi
+              if [ -f "$dir/forge-adventure.$ext" ]; then cp -p "$dir/forge-adventure.$ext" "$dir/forge.$ext"; fi
+            done
+            (cd unpacked && tar -cjf "../$pkg" .)
+          done
+          rm -rf unpacked
+          ls -la dist
 
       - name: Upload the installer
         uses: actions/upload-artifact@v4
@@ -57,6 +75,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          notes="Forge Commander edition for desktop, built from $(git rev-parse --short HEAD) on $(date -u +%Y-%m-%d). The .jar is the installer (java -jar <file>); the .tar.bz2 is the unpacked program for Windows and Linux. Needs Java 17."
+          notes="Forge Commander edition for desktop, built from $(git rev-parse --short HEAD) on $(date -u +%Y-%m-%d). Unpack the .tar.bz2 and run forge.exe (Windows) or forge.sh (Linux, macOS); forge-classic opens the old desktop interface. Needs Java 17."
           gh release delete commander-edition-desktop-latest --yes --cleanup-tag || true
           gh release create commander-edition-desktop-latest dist/* --title "Forge Commander edition for desktop (latest)" --notes "$notes" --target "$(git rev-parse HEAD)"

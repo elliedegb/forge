@@ -1,5 +1,6 @@
 package forge.screens.match;
 
+import forge.toolbox.Duel;
 import static forge.Forge.getLocalizer;
 
 import com.badlogic.gdx.utils.Timer;
@@ -1156,7 +1157,7 @@ public class MatchScreen extends FScreen {
             float bgFullWidth, scaledbgHeight;
             final int multiplier = liveMultiplier();
             float bgHeight = getPlayerBgHeight(midField, y);
-            if (!Forge.isLandscapeMode()) { //portrait: fixed full-area rect so zone tabs opening/closing never resize or shift the image
+            if (!Forge.isLandscapeMode() || Duel.isOn()) { //portrait and the duel look: the whole screen, so zone tabs opening/closing never resize or shift the image
                 x = 0;
                 y = 0;
                 w = getWidth();
@@ -1285,6 +1286,16 @@ public class MatchScreen extends FScreen {
             float y;
             float w = getWidth();
 
+            if (Duel.isOn() && Forge.isLandscapeMode() && playerPanelsList.size() > 2) {
+                return; //duel table: each seat has its own frame
+            }
+            if (Duel.isOn()) { //duel look: a glowing seam between the two halves of the battlefield
+                for (int i = 1; i < playerPanelsList.size(); i++) {
+                    Duel.drawSeam(g, x, playerPanelsList.get(i).getTop(), w);
+                }
+                return;
+            }
+
             //field separator lines
             if (!Forge.isLandscapeMode()) {
                 for (VPlayerPanel playerPanel : playerPanelsList) {
@@ -1317,6 +1328,28 @@ public class MatchScreen extends FScreen {
                 avatarHeight *= 0.5f;
             }
 
+            for (VPlayerPanel playerPanel : playerPanelsList) {
+                playerPanel.setSeat(VPlayerPanel.SEAT_BAND);
+            }
+            if (Duel.isOn() && Forge.isLandscapeMode() && (playerCount == 3 || playerCount == 4)) {
+                //duel table: you at the bottom, then clockwise the players on the left, across (with 4) and on the right
+                final float sideW = visibleWidth * 0.2f;
+                final float midW = visibleWidth - 2 * sideW;
+                final VPlayerPanel left = playerPanelsList.get(0);
+                final VPlayerPanel right = playerPanelsList.get(playerCount - 2);
+                final VPlayerPanel bottom = playerPanelsList.get(playerCount - 1);
+                left.setSeat(VPlayerPanel.SEAT_LEFT);
+                right.setSeat(VPlayerPanel.SEAT_RIGHT);
+                left.setBounds(0, 0, sideW, visibleHeight);
+                right.setBounds(visibleWidth - sideW, 0, sideW, visibleHeight);
+                if (playerCount == 4) {
+                    playerPanelsList.get(1).setBounds(sideW, 0, midW, visibleHeight / 2);
+                    bottom.setBounds(sideW, visibleHeight / 2, midW, visibleHeight / 2);
+                } else {
+                    bottom.setBounds(sideW, visibleHeight * 0.4f, midW, visibleHeight * 0.6f);
+                }
+                return new ScrollBounds(visibleWidth, visibleHeight);
+            }
             if (Forge.isLandscapeMode() && playerCount == 2) {
                 float panelHeight = totalHeight / 2;
                 //list is ordered top to bottom, and the original top/bottom panel may have been removed

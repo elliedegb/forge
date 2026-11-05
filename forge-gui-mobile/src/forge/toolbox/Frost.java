@@ -34,6 +34,7 @@ public final class Frost {
     }
 
     public static Color slate(float alpha) {
+        if (Duel.isOn()) { return Duel.glass(alpha); }
         return new Color(SLATE.r, SLATE.g, SLATE.b, alpha);
     }
 
@@ -63,12 +64,14 @@ public final class Frost {
 
     /** the theme's active colour with the given alpha */
     public static Color accent(float alpha) {
+        if (Duel.isOn()) { return new Color(Duel.GOLD.r, Duel.GOLD.g, Duel.GOLD.b, alpha); }
         final Color c = FSkinColor.get(Colors.CLR_ACTIVE).getColor();
         return new Color(c.r, c.g, c.b, alpha);
     }
 
     /** the accent, brightened or darkened by the factor */
     public static Color accentShade(float factor, float alpha) {
+        if (Duel.isOn()) { return new Color(Math.min(1f, Duel.GOLD.r * factor), Math.min(1f, Duel.GOLD.g * factor), Math.min(1f, Duel.GOLD.b * factor), alpha); }
         final Color c = FSkinColor.get(Colors.CLR_ACTIVE).getColor();
         return new Color(Math.min(1f, c.r * factor), Math.min(1f, c.g * factor), Math.min(1f, c.b * factor), alpha);
     }

@@ -1,5 +1,6 @@
 package forge.screens.match.views;
 
+import forge.toolbox.Duel;
 import java.util.List;
 
 import forge.Forge;
@@ -119,6 +120,7 @@ public class VZoneDisplay extends VCardDisplayArea {
     }
 
     protected boolean layoutVerticallyForLandscapeMode() {
+        if (Duel.isOn()) { return false; } //duel look: zones open as a row above the player bar in both orientations
         return !VPlayerPanel.isAltZoneLayout();
     }
 
@@ -137,6 +139,10 @@ public class VZoneDisplay extends VCardDisplayArea {
 
         if (Forge.isLandscapeMode() && layoutVerticallyForLandscapeMode()) {
             return layoutAndGetScrollBoundsLandscape(visibleWidth, visibleHeight);
+        }
+
+        if (Duel.isOn() && getZoneType() == ZoneType.Hand && !cardPanels.get().isEmpty()) {
+            return layoutHandFan(visibleWidth, visibleHeight);
         }
 
         float x = 0;
@@ -170,6 +176,37 @@ public class VZoneDisplay extends VCardDisplayArea {
         }
 
         return new ScrollBounds(centered ? visibleWidth : x, visibleHeight);
+    }
+
+    /**
+     * Duel look: the hand as a fan of overlapping cards, centred, the middle cards raised a little like cards held in a hand.
+     * Cards overlap as much as needed to fit; only a very large hand scrolls.
+     */
+    private ScrollBounds layoutHandFan(float visibleWidth, float visibleHeight) {
+        final List<CardAreaPanel> panels = cardPanels.get();
+        final int n = panels.size();
+        final float arc = visibleHeight * 0.08f; //how much lower the outer cards sit
+        final float cardHeight = visibleHeight - arc;
+        final float cardWidth = getCardWidth(cardHeight);
+        final float minStep = cardWidth * 0.3f;
+        float step = n > 1 ? Math.min(cardWidth * 0.92f, (visibleWidth - cardWidth) / (n - 1)) : 0;
+        if (n > 1 && step < minStep) { step = minStep; }
+        final float total = cardWidth + step * (n - 1);
+        float x = total < visibleWidth ? (visibleWidth - total) / 2 : 0;
+        if (n > 1 && step < cardWidth) {
+            if (revealedPanel == null) { revealedPanel = panels.get(n - 1); }
+        } else {
+            revealedPanel = null;
+        }
+        final float mid = (n - 1) / 2f;
+        for (int i = 0; i < n; i++) {
+            final CardAreaPanel cardPanel = panels.get(i);
+            orderedCards.get().add(cardPanel.getCard());
+            final float t = mid > 0 ? (i - mid) / mid : 0;
+            cardPanel.setBounds(x, arc * t * t, cardWidth, cardHeight);
+            x += step;
+        }
+        return new ScrollBounds(Math.max(visibleWidth, total), visibleHeight);
     }
 
     private ScrollBounds layoutAndGetScrollBoundsLandscape(float visibleWidth, float visibleHeight) {
