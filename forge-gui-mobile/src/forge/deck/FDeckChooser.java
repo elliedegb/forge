@@ -10,6 +10,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.function.Consumer;
 
+import forge.gui.CommanderEdition;
 import forge.game.GameFormat;
 import forge.util.MyRandom;
 import org.apache.commons.lang3.StringUtils;
@@ -213,7 +214,7 @@ public class FDeckChooser extends FScreen {
             initialize(null, DeckType.CUSTOM_DECK);
             break;
         case DeckManager:
-            initialize(null, DeckPreferences.getSelectedDeckType());
+            initialize(null, CommanderEdition.isEnabled() ? DeckType.COMMANDER_DECK : DeckPreferences.getSelectedDeckType());
             break;
         default:
             initialize(null, DeckType.RANDOM_DECK);

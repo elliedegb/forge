@@ -536,6 +536,9 @@ public class SettingsPage extends TabPage<SettingsScreen> {
         /*lstSettings.addItem(new BooleanSetting(FPref.LOAD_CARD_SCRIPTS_LAZILY,
             Forge.getLocalizer().getMessage("cbLoadCardsLazily"),
             Forge.getLocalizer().getMessage("nlLoadCardsLazily")), 3);*/ //
+        lstSettings.addItem(new BooleanSetting(FPref.UI_COMMANDER_EDITION,
+            Forge.getLocalizer().getMessageorUseDefault("cbCommanderEdition", "Commander Edition"),
+            Forge.getLocalizer().getMessageorUseDefault("nlCommanderEdition", "New Game, the lobby and the deck editor offer only the Commander format. Restart Forge after changing it.")), 3);
         lstSettings.addItem(new BooleanSetting(FPref.LOAD_ARCHIVED_FORMATS,
             Forge.getLocalizer().getMessage("cbLoadArchivedFormats"),
             Forge.getLocalizer().getMessage("nlLoadArchivedFormats")), 3);

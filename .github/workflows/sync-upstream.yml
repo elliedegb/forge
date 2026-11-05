@@ -1,0 +1,57 @@
+name: Sync with upstream Forge
+
+# Every day, merges Card-Forge/forge into this fork's branch. When the merge brings new or changed card scripts
+# or set files (a new release's cards), it rebuilds and publishes the Commander edition APK.
+on:
+  schedule:
+    - cron: '41 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    outputs:
+      cards: ${{ steps.merge.outputs.cards }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Merge upstream
+        id: merge
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream https://github.com/Card-Forge/forge.git
+          git fetch --no-tags upstream master
+          before=$(git rev-parse HEAD)
+          if ! git merge --no-edit upstream/master; then
+            git merge --abort
+            echo "::error::Upstream changes conflict with this fork. Merge Card-Forge/forge master by hand, then run this workflow again."
+            exit 1
+          fi
+          if [ "$before" = "$(git rev-parse HEAD)" ]; then
+            echo "Already up to date with upstream."
+            echo "cards=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git push
+          if git diff --name-only "$before" HEAD | grep -qE '^forge-gui/res/(cardsfolder|editions)/'; then
+            echo "New or changed cards: $(git diff --name-only "$before" HEAD -- forge-gui/res/cardsfolder | wc -l) card files."
+            echo "cards=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "cards=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  apk:
+    needs: sync
+    if: needs.sync.outputs.cards == 'true'
+    uses: ./.github/workflows/commander-edition-apk.yml

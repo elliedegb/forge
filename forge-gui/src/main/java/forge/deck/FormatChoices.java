@@ -11,6 +11,7 @@ import java.util.stream.Stream;
 
 import forge.game.GameFormat;
 import forge.game.GameType;
+import forge.gui.CommanderEdition;
 import forge.gui.util.ListHeading;
 import forge.localinstance.properties.ForgePreferences.FPref;
 import forge.model.FModel;
@@ -45,6 +46,9 @@ public final class FormatChoices {
      * formats are turned on.
      */
     public static List<Object> get(final boolean generatedDecks) {
+        if (CommanderEdition.isEnabled()) {
+            return new ArrayList<>(List.of(GameType.Commander));
+        }
         final Localizer localizer = Localizer.getInstance();
         final List<Object> choices = new ArrayList<>();
         choices.add(GameType.Constructed);

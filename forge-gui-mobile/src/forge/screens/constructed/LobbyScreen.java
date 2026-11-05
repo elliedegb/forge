@@ -6,6 +6,7 @@ import java.util.List;
 
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import forge.gui.CommanderEdition;
 import forge.gamemodes.net.server.HostingServer;
 import forge.player.GamePlayerUtil;
 import org.apache.commons.lang3.StringUtils;
@@ -235,6 +236,10 @@ public abstract class LobbyScreen extends LaunchScreen implements ILobbyView {
             FThreads.invokeInEdtLater(() -> {
                 btnStart.setEnabled(lobby.hasControl());
                 lobby.restoreSetup();
+                // The Commander edition always opens on Commander, whatever an earlier lobby saved
+                if (CommanderEdition.isEnabled() && lobby.hasControl() && !lobby.hasVariant(GameType.Commander)) {
+                    applyFormatChoice(GameType.Commander);
+                }
                 updateLayoutForVariants();
             });
         });

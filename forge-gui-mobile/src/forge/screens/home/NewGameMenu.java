@@ -8,6 +8,7 @@ import forge.localinstance.properties.ForgePreferences.FPref;
 import forge.menu.FMenuItem;
 import forge.menu.FPopupMenu;
 import forge.model.FModel;
+import forge.gui.CommanderEdition;
 import forge.screens.FScreen;
 import forge.screens.constructed.ConstructedScreen;
 import forge.screens.gauntlet.NewGauntletScreen;
@@ -45,7 +46,7 @@ public class NewGameMenu extends FPopupMenu {
             if (screen == null) { //don't initialize screen until it's opened the first time
                 try {
                     screen = screenClass.getConstructor().newInstance();
-                    screen.setHeaderCaption(Forge.getLocalizer().getMessageorUseDefault("lblNewGame", "New Game") + " - " + item.getText());
+                    screen.setHeaderCaption(Forge.getLocalizer().getMessageorUseDefault("lblNewGame", "New Game") + " - " + (CommanderEdition.isEnabled() && NewGameScreen.this == Constructed ? Forge.getLocalizer().getMessageorUseDefault("lblCommander", "Commander") : item.getText()));
                 }
                 catch (Exception e) {
                     e.printStackTrace();
@@ -87,6 +88,8 @@ public class NewGameMenu extends FPopupMenu {
     }
 
     public static NewGameScreen getPreferredScreen() {
+        if (CommanderEdition.isEnabled()) //New Game opens the Commander lobby
+            return NewGameScreen.Constructed;
         if (preferredScreen == null) //shouldn't happen but we return constructed as default
             return NewGameScreen.Constructed;
         return preferredScreen;
@@ -113,6 +116,8 @@ public class NewGameMenu extends FPopupMenu {
     protected void buildMenu() {
         FScreen currentScreen = Forge.getCurrentScreen();
         for (NewGameScreen ngs : NewGameScreen.values()) {
+            if (CommanderEdition.isEnabled() && ngs != NewGameScreen.Constructed && ngs != NewGameScreen.PuzzleMode)
+                continue; //Commander edition: Commander games and puzzles only
             addItem(ngs.item);
             ngs.item.setSelected(currentScreen == ngs.screen);
         }
