@@ -142,12 +142,6 @@ public final class ComboGuard {
         if (plan != null && DredgeLine.mustWait(ai, plan, sa)) {
             return "dredge-line-incomplete";
         }
-        // Breakthrough without a dredger, a card for the graveyard and Lion's Eye Diamond in play only empties the hand.
-        // Not left to AiController.canPlaySa: it answers AnotherTime, and a fuel play (a sorcery that discards) with that
-        // answer is still offered to the rollouts as a discovered play, which the rollouts like (the graveyard fills).
-        if (plan != null && DredgeLine.mustWait(ai, plan, sa)) {
-            return "dredge-line-incomplete";
-        }
         // Griselbrand: pay life, draw cards. Offered to the rollouts as a discovered play whatever the heuristics think,
         // and the rollouts like the cards; the guard stops it when the life or the library cannot take it.
         if (LifeDrawGuard.reckless(ai, sa, plan)) {
@@ -163,6 +157,11 @@ public final class ComboGuard {
         final String untimely = TimedAbilityGuard.problem(ai, sa);
         if (untimely != null) {
             return untimely;
+        }
+        // an activated ability with nothing to act on (Oran-Rief with no new green creature): see ActivationGuard
+        final String idle = ActivationGuard.problem(ai, sa);
+        if (idle != null) {
+            return idle;
         }
         // Demonic Consultation exiles the library: only to win, with the Oracle's trigger on the stack (ConsultationWin)
         if (ConsultationWin.isConsultation(sa) && !ConsultationWin.winnerOnStack(ai.getGame(), ai)) {

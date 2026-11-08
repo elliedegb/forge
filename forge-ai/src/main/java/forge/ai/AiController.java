@@ -265,7 +265,7 @@ public class AiController {
         for (final Card c : ccvGameBattlefield) {
             final String curse = c.getSVar("AICurseEffect");
             final Card host = sa.getHostCard();
-            if ("NonActive".equals(curse) && !player.equals(game.getPhaseHandler().getPlayerTurn())) {
+            if ("NonActive".equals(curse) && !game.getPhaseHandler().isPlayerTurn(player)) {
                 return true;
             } else if ("DestroyCreature".equals(curse) && sa.isSpell() && host.isCreature()
                     && !host.hasKeyword(Keyword.INDESTRUCTIBLE)) {
@@ -906,6 +906,43 @@ public class AiController {
         return true;
     }
 
+    /**
+     * The check of a play made to assemble a catalogued combo: the heuristics' own approval (it sets targets), or for a
+     * spell without targets that can be cast and paid, whatever they think of a piece that does nothing alone.
+     */
+    private boolean assemblyApproved(final SpellAbility sa) {
+        try {
+            if (ComboGuard.problem(player, sa, null, deckPlan(player).combos) != null) {
+                return false;
+            }
+            sa.setActivatingPlayer(player);
+            sa.setLastStateBattlefield(game.getLastStateBattlefield());
+            sa.setLastStateGraveyard(game.getLastStateGraveyard());
+            try {
+                if (canPlayAndPayFor(sa) == AiPlayDecision.WillPlay) {
+                    return true;
+                }
+            } finally {
+                sa.clearLastState();
+            }
+            return (!sa.usesTargeting() || ComboAssembly.aimedDreamsKill(player, sa)) && sa.canPlay()
+                    && ComputerUtilCost.canPayCost(sa, player, false);
+        } catch (final RuntimeException e) {
+            return false;
+        }
+    }
+
+    /** The step of a loop (see {@link LoopRunner}): aimed already, so only the cost and an earlier failure are looked at. */
+    private boolean loopApproved(final SpellAbility sa) {
+        try {
+            sa.setActivatingPlayer(player);
+            return !hasFailedToCast(sa) && sa.canPlay() && ComputerUtilCost.canPayCost(sa, player, false)
+                    && game.getStack().hasLegalTargeting(sa);
+        } catch (final RuntimeException e) {
+            return false;
+        }
+    }
+
     private AiPlayDecision canPlayAndPayFor(final SpellAbility sa) {
         AITimeoutTracker.check();
         final Card host = sa.getHostCard();
@@ -1492,7 +1529,9 @@ public class AiController {
         if (!(flatMcOverride != null ? flatMcOverride : game.getAIFlatMonteCarlo()) || flatMcOff() || simMode != null
                 || !getBoolProperty(AiProps.FLAT_MC_ENABLED)
                 || !(flatMcAttackOverride != null ? flatMcAttackOverride : getBoolProperty(AiProps.FLAT_MC_ATTACK) || isFlatMonteCarloMax() || isFlatMonteCarloLite())
-                || attacker != player || !game.getPhaseHandler().is(PhaseType.COMBAT_DECLARE_ATTACKERS)) {
+                || attacker != player || !game.getPhaseHandler().is(PhaseType.COMBAT_DECLARE_ATTACKERS)
+                // the rollouts choose a whole attack, so they would withdraw a teammate's attackers (CR 805.10b)
+                || combat.getAttackers().anyMatch(c -> !attacker.equals(c.getController()))) {
             return;
         }
         final FlatMonteCarloPicker.Config cfg = flatMonteCarloConfig();
@@ -1550,15 +1589,20 @@ public class AiController {
         // Per CR 508.1d, the decision to pay attack costs (e.g. Propaganda)
         // is made at declaration time. Remove attackers the AI can't pay for.
         // Correctness-critical and cheap, so it also runs when the deadline fired (outside the armed region).
-        removeUnpayableAttackers(combat);
+        removeUnpayableAttackers(attacker, combat);
 
         // if invalid: just try an attack declaration that we know to be legal
         if (!CombatUtil.validateAttackers(combat)) {
-            combat.clearAttackers();
+            // only this player's attackers are replaced, so a teammate's part of a team attack stays (CR 805.10b)
+            for (final Card own : CardLists.filterControlledBy(combat.getAttackers(), attacker)) {
+                combat.removeFromCombat(own);
+            }
             final Map<Card, GameEntity> legal = combat.getAttackConstraints().getLegalAttackers().getLeft();
             System.err.println("AI Attack declaration invalid, defaulting to: " + legal);
             for (final Map.Entry<Card, GameEntity> mandatoryAttacker : legal.entrySet()) {
-                combat.addAttacker(mandatoryAttacker.getKey(), mandatoryAttacker.getValue());
+                if (mandatoryAttacker.getKey().getController().equals(attacker)) {
+                    combat.addAttacker(mandatoryAttacker.getKey(), mandatoryAttacker.getValue());
+                }
             }
             if (!CombatUtil.validateAttackers(combat)) {
                 aiAtk.declareAttackers(combat);
@@ -1566,8 +1610,9 @@ public class AiController {
         }
     }
 
-    private void removeUnpayableAttackers(Combat combat) {
-        for (Card attacker : combat.getAttackers().threadSafeIterable()) {
+    private void removeUnpayableAttackers(final Player attackingPlayer, Combat combat) {
+        // a teammate's attackers are theirs to pay for
+        for (Card attacker : CardLists.filterControlledBy(combat.getAttackers(), attackingPlayer)) {
             Cost attackCost = CombatUtil.getAttackCost(game, attacker, combat.getDefenderByAttacker(attacker));
             if (attackCost == null) {
                 continue;
@@ -1933,7 +1978,8 @@ public class AiController {
                 return true;
             }
             final Card h = spellAbility.getHostCard();
-            return h != null && ComputerUtilCard.isCardRemAIDeck(h) && !flatMc;
+            return h != null && ((ComputerUtilCard.isCardRemAIDeck(h) && !flatMc) || ComboAssembly.deadOnArrival(player, spellAbility)
+                    || (flatMc && LoopRunner.held(player, spellAbility)));
         });
         //removed skipped SA
         skipped = saList.stream().filter(SpellAbility::isSkip).collect(Collectors.toList());
@@ -1980,6 +2026,20 @@ public class AiController {
                 if (donateFinish.costHasManaX()) {
                     donateFinish.setXManaCostPaid(null);
                 }
+            }
+        }
+        if (flatMonteCarloActive()) {
+            final SpellAbility loop = LoopRunner.next(player, saList, this::loopApproved);
+            if (loop != null) {
+                return loop; // a loop of the combo list is on the table: one more round of it
+            }
+            final SpellAbility finish = ComboAssembly.finish(player, saList, this::assemblyApproved);
+            if (finish != null) {
+                return finish; // a draw that takes the opponent's whole library: they lose at their next draw
+            }
+            final SpellAbility assembly = ComboAssembly.next(player, saList, this::assemblyApproved);
+            if (assembly != null) {
+                return assembly; // a catalogued combo whose other cards are all in play or in hand: put it together
             }
         }
         // Stiflenought: the Dreadnought is cast as soon as its Stifle can be paid for as well, without rollouts
@@ -2580,6 +2640,9 @@ public class AiController {
             // a manland, crew, saddle or station is only worth its cost at one moment of the turn, and the heuristics
             // know which: their "not now" is final, and the rollouts cannot see the waste (nothing in the score)
             return false;
+        }
+        if (ActivationGuard.problem(player, sa) != null) {
+            return false; // nothing to act on: a discovered tap or mana for no effect (Oran-Rief with no new green creature)
         }
         final Card host = sa.getHostCard();
         final ComboPlan combos = deckPlan(player).combos;
