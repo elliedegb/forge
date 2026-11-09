@@ -45,8 +45,7 @@ public class Launcher extends Activity {
                 BufferedReader r = new BufferedReader(new InputStreamReader(in));
                 StringBuilder total = new StringBuilder();
                 for (String line; (line = r.readLine()) != null; ) {
-                    total.append(line).append('
-');
+                    total.append(line).append('\n');
                 }
                 text = total.toString();
             } else {
