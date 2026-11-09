@@ -6,6 +6,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import forge.SharedDeck;
 import forge.gui.GuiBase;
 
 import java.io.BufferedReader;
@@ -29,65 +30,47 @@ public class Launcher extends Activity {
 
     private void sendIntent(Intent intent, String action, String type) {
         if (Intent.ACTION_SEND.equals(action) && type != null) {
-            final Handler handler = new Handler();
-            handler.postDelayed(() -> {
-                if ("text/plain".equals(type)) {
-                    Uri textUri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
-                    if (textUri != null) {
-                        try {
-                            InputStream in = getContentResolver().openInputStream(textUri);
-                            BufferedReader r = new BufferedReader(new InputStreamReader(in));
-                            StringBuilder total = new StringBuilder();
-                            for (String line; (line = r.readLine()) != null; ) {
-                                total.append(line).append('\n');
-                            }
-                            GuiBase.getInterface().copyToClipboard(total.toString());
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    } else {
-                        try {
-                            GuiBase.getInterface().copyToClipboard(intent.getStringExtra(Intent.EXTRA_TEXT));
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }
-            }, 1500);
+            new Handler(Looper.getMainLooper()).postDelayed(() -> receive(intent, type), 1500);
         }
     }
+
+    //a Forge .dck shared by another app (Scry Magic's "Send to Forge") is saved as a deck; other text goes to the clipboard
+    private void receive(Intent intent, String type) {
+        if (!"text/plain".equals(type)) { return; }
+        String text = null;
+        Uri textUri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
+        try {
+            if (textUri != null) {
+                InputStream in = getContentResolver().openInputStream(textUri);
+                BufferedReader r = new BufferedReader(new InputStreamReader(in));
+                StringBuilder total = new StringBuilder();
+                for (String line; (line = r.readLine()) != null; ) {
+                    total.append(line).append('
+');
+                }
+                text = total.toString();
+            } else {
+                text = intent.getStringExtra(Intent.EXTRA_TEXT);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        if (text == null) { return; }
+        if (SharedDeck.looksLikeDeck(text)) {
+            SharedDeck.receive(text);
+            return;
+        }
+        try {
+            GuiBase.getInterface().copyToClipboard(text);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
-        String action = intent.getAction();
-        String type = intent.getType();
-
-        if (Intent.ACTION_SEND.equals(action) && type != null) {
-            new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                if ("text/plain".equals(type)) {
-                    Uri textUri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
-                    if (textUri != null) {
-                        try {
-                            InputStream in = getContentResolver().openInputStream(textUri);
-                            BufferedReader r = new BufferedReader(new InputStreamReader(in));
-                            StringBuilder total = new StringBuilder();
-                            for (String line; (line = r.readLine()) != null; ) {
-                                total.append(line).append('\n');
-                            }
-                            GuiBase.getInterface().copyToClipboard(total.toString());
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    } else {
-                        try {
-                            GuiBase.getInterface().copyToClipboard(intent.getStringExtra(Intent.EXTRA_TEXT));
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }
-            }, 1500);
-        }
+        sendIntent(intent, intent.getAction(), intent.getType());
     }
 }

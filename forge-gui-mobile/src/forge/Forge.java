@@ -448,6 +448,7 @@ public class Forge implements ApplicationListener {
             NewGameMenu.getPreferredScreen().open();
         }
         stopContinuousRendering(); //save power consumption by disabling continuous rendering once assets loaded
+        Gdx.app.postRunnable(SharedDeck::importPending); //a deck shared to Forge while it was starting
     }
 
     public static void openAdventure() {
